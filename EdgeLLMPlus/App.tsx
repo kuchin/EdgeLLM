@@ -15,12 +15,10 @@ import {
 
 import Markdown from 'react-native-markdown-display';
 
-import {initLlama, loadLlamaModelInfo, releaseAllLlama} from 'llama.rn'; // Import llama.rn
+import {initLlama, releaseAllLlama} from 'llama.rn'; // Import llama.rn
 import {downloadModel} from './src/api/model'; // Download function
 import ProgressBar from './src/components/ProgressBar'; // Progress bar component
 import RNFS from 'react-native-fs'; // File system module
-// import RNFetchBlob from 'rn-fetch-blob';
-
 import axios from 'axios';
 
 type Message = {
@@ -31,19 +29,15 @@ type Message = {
 };
 
 function App(): React.JSX.Element {
-  // const modelPath =
-  //   'file:///Users/medmekk/projects/ai/on-device/EdgeLLM/assets/Llama-3.2-1B-Instruct-Q4_K_S.gguf';
   const INITIAL_CONVERSATION: Message[] = [
     {
       role: 'system',
       content:
         'This is a conversation between user and assistant, a friendly chatbot.',
     },
-    // {role: 'assistant', content: 'Hi there! How can I help you today?'},
   ];
   const [context, setContext] = useState<any>(null);
-  const [conversation, setConversation] =
-    useState<Message[]>(INITIAL_CONVERSATION);
+  const [conversation, setConversation] = useState<Message[]>(INITIAL_CONVERSATION);
   const [userInput, setUserInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -51,13 +45,8 @@ function App(): React.JSX.Element {
   const [selectedModelFormat, setSelectedModelFormat] = useState<string>('');
   const [selectedGGUF, setSelectedGGUF] = useState<string | null>(null);
   const [availableGGUFs, setAvailableGGUFs] = useState<string[]>([]); // List of .gguf files
-  const [currentPage, setCurrentPage] = useState<
-    'modelSelection' | 'conversation'
-  >('modelSelection'); // Navigation state
+  const [currentPage, setCurrentPage] = useState<'modelSelection' | 'conversation'>('modelSelection'); // Navigation state
   const [tokensPerSecond, setTokensPerSecond] = useState<number[]>([]);
-  const [visibleThoughts, setVisibleThoughts] = useState<{
-    [key: number]: boolean;
-  }>({});
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isFetching, setIsFetching] = useState<boolean>(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -77,9 +66,12 @@ function App(): React.JSX.Element {
     'Qwen2-0.5B-Instruct': 'Qwen/Qwen2-0.5B-Instruct-GGUF',
     'SmolLM2-1.7B-Instruct': 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
   };
+
+  // To handle the scroll view
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollPositionRef = useRef(0);
   const contentHeightRef = useRef(0);
+
   const handleGGUFSelection = (file: string) => {
     setSelectedGGUF(file);
     Alert.alert(
@@ -88,10 +80,10 @@ function App(): React.JSX.Element {
       [
         {
           text: 'No',
-          onPress: () => setSelectedGGUF(null), // Clear selection if "No"
+          onPress: () => setSelectedGGUF(null), 
           style: 'cancel',
         },
-        {text: 'Yes', onPress: () => handleDownloadAndNavigate(file)}, // Proceed with download
+        {text: 'Yes', onPress: () => handleDownloadAndNavigate(file)},
       ],
       {cancelable: false},
     );
@@ -103,7 +95,6 @@ function App(): React.JSX.Element {
   };
 
   const handleBackToModelSelection = () => {
-    console.log('In the handleBackToModelSelection');
     setContext(null);
     releaseAllLlama();
     setConversation(INITIAL_CONVERSATION);
@@ -234,7 +225,6 @@ function App(): React.JSX.Element {
       setIsGenerating(false);
       setIsLoading(false);
 
-      // Optionally add a note that generation was stopped
       setConversation(prev => {
         const lastMessage = prev[prev.length - 1];
         if (lastMessage.role === 'assistant') {
@@ -255,7 +245,6 @@ function App(): React.JSX.Element {
 
   const loadModel = async (modelName: string) => {
     try {
-      // const destPath = `${RNFetchBlob.fs.dirs.DocumentDir}/${modelName}.gguf`;
       const destPath = `${RNFS.DocumentDirectoryPath}/${modelName}`;
       console.log('destPath : ', destPath);
       if (context) {
@@ -280,12 +269,6 @@ function App(): React.JSX.Element {
       return false;
     }
   };
-
-  // useEffect(() => {
-  //   if (scrollViewRef.current) {
-  //     scrollViewRef.current.scrollToEnd({ animated: true });
-  //   }
-  // }, [conversation]);
 
   const handleSendMessage = async () => {
     if (!context) {
@@ -401,9 +384,6 @@ function App(): React.JSX.Element {
         },
       );
 
-      // Finalize tokens per second and other metrics after completion
-      console.log('result : ', result);
-      console.log('conversatin : ', conversation);
       setTokensPerSecond(prev => [
         ...prev,
         parseFloat(result.timings.predicted_per_second.toFixed(2)),
@@ -447,6 +427,9 @@ function App(): React.JSX.Element {
               {selectedModelFormat && (
                 <View>
                   <Text style={styles.subtitle}>Select a .gguf file</Text>
+                  {isFetching && (
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  )}
                   {availableGGUFs.map((file, index) => {
                     const isDownloaded = downloadedModels.includes(file);
                     return (
