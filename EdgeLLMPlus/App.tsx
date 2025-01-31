@@ -280,7 +280,7 @@ function App(): React.JSX.Element {
       return;
     }
 
-    const newConversation = [
+    const newConversation: Message[] = [
       ...conversation,
       {role: 'user', content: userInput},
     ];
@@ -484,13 +484,6 @@ function App(): React.JSX.Element {
                   })}
                 </View>
               )}
-              {/* {selectedGGUF && (
-              <TouchableOpacity
-                style={styles.downloadButton}
-                onPress={handleDownloadAndNavigate}>
-                <Text style={styles.buttonText}>Download and Start Chat</Text>
-              </TouchableOpacity>
-            )} */}
             </View>
           )}
           {currentPage === 'conversation' && !isDownloading && (
@@ -669,22 +662,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-
-  downloadButton: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 16,
-    shadowColor: '#2563EB',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
   chatWrapper: {
     flex: 1,
     padding: 16,
@@ -823,10 +800,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+
   bottomContainer: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
