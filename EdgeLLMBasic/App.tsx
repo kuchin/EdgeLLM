@@ -55,11 +55,12 @@ function App(): React.JSX.Element {
   ];
 
   const HF_TO_GGUF = {
-    'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
-    'DeepSeek-R1-Distill-Qwen-1.5B':
-      'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF',
-    'Qwen2-0.5B-Instruct': 'Qwen/Qwen2-0.5B-Instruct-GGUF',
-    'SmolLM2-1.7B-Instruct': 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
+    // 'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
+    "Llama-3.2-1B-Instruct": "medmekk/Llama-3.2-1B-Instruct.GGUF",
+    "DeepSeek-R1-Distill-Qwen-1.5B":
+      "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
+    "Qwen2-0.5B-Instruct": "medmekk/Qwen2.5-0.5B-Instruct.GGUF",
+    "SmolLM2-1.7B-Instruct": "medmekk/SmolLM2-1.7B-Instruct.GGUF",
   };
 
   // #################### Button functions ######################

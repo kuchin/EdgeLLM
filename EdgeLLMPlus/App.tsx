@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -11,18 +11,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from 'react-native';
+} from "react-native";
 
-import Markdown from 'react-native-markdown-display';
+import Markdown from "react-native-markdown-display";
 
-import {initLlama, releaseAllLlama} from 'llama.rn'; // Import llama.rn
-import {downloadModel} from './src/api/model'; // Download function
-import ProgressBar from './src/components/ProgressBar'; // Progress bar component
-import RNFS from 'react-native-fs'; // File system module
-import axios from 'axios';
+import { initLlama, releaseAllLlama } from "llama.rn"; // Import llama.rn
+import { downloadModel } from "./src/api/model"; // Download function
+import ProgressBar from "./src/components/ProgressBar"; // Progress bar component
+import RNFS from "react-native-fs"; // File system module
+import axios from "axios";
 
 type Message = {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   thought?: string; // Single thought block
   showThought?: boolean;
@@ -31,21 +31,24 @@ type Message = {
 function App(): React.JSX.Element {
   const INITIAL_CONVERSATION: Message[] = [
     {
-      role: 'system',
+      role: "system",
       content:
-        'This is a conversation between user and assistant, a friendly chatbot.',
+        "This is a conversation between user and assistant, a friendly chatbot.",
     },
   ];
   const [context, setContext] = useState<any>(null);
-  const [conversation, setConversation] = useState<Message[]>(INITIAL_CONVERSATION);
-  const [userInput, setUserInput] = useState<string>('');
+  const [conversation, setConversation] =
+    useState<Message[]>(INITIAL_CONVERSATION);
+  const [userInput, setUserInput] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [selectedModelFormat, setSelectedModelFormat] = useState<string>('');
+  const [selectedModelFormat, setSelectedModelFormat] = useState<string>("");
   const [selectedGGUF, setSelectedGGUF] = useState<string | null>(null);
   const [availableGGUFs, setAvailableGGUFs] = useState<string[]>([]); // List of .gguf files
-  const [currentPage, setCurrentPage] = useState<'modelSelection' | 'conversation'>('modelSelection'); // Navigation state
+  const [currentPage, setCurrentPage] = useState<
+    "modelSelection" | "conversation"
+  >("modelSelection"); // Navigation state
   const [tokensPerSecond, setTokensPerSecond] = useState<number[]>([]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isFetching, setIsFetching] = useState<boolean>(false);
@@ -53,18 +56,19 @@ function App(): React.JSX.Element {
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
 
   const modelFormats = [
-    {label: 'Llama-3.2-1B-Instruct'},
-    {label: 'Qwen2-0.5B-Instruct'},
-    {label: 'DeepSeek-R1-Distill-Qwen-1.5B'},
-    {label: 'SmolLM2-1.7B-Instruct'},
+    { label: "Llama-3.2-1B-Instruct" },
+    { label: "Qwen2-0.5B-Instruct" },
+    { label: "DeepSeek-R1-Distill-Qwen-1.5B" },
+    { label: "SmolLM2-1.7B-Instruct" },
   ];
 
   const HF_TO_GGUF = {
-    'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
-    'DeepSeek-R1-Distill-Qwen-1.5B':
-      'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF',
-    'Qwen2-0.5B-Instruct': 'Qwen/Qwen2-0.5B-Instruct-GGUF',
-    'SmolLM2-1.7B-Instruct': 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
+    // 'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
+    "Llama-3.2-1B-Instruct": "medmekk/Llama-3.2-1B-Instruct.GGUF",
+    "DeepSeek-R1-Distill-Qwen-1.5B":
+      "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
+    "Qwen2-0.5B-Instruct": "medmekk/Qwen2.5-0.5B-Instruct.GGUF",
+    "SmolLM2-1.7B-Instruct": "medmekk/SmolLM2-1.7B-Instruct.GGUF",
   };
 
   // To handle the scroll view
@@ -75,23 +79,23 @@ function App(): React.JSX.Element {
   const handleGGUFSelection = (file: string) => {
     setSelectedGGUF(file);
     Alert.alert(
-      'Confirm Download',
+      "Confirm Download",
       `Do you want to download ${file} ?`,
       [
         {
-          text: 'No',
-          onPress: () => setSelectedGGUF(null), 
-          style: 'cancel',
+          text: "No",
+          onPress: () => setSelectedGGUF(null),
+          style: "cancel",
         },
-        {text: 'Yes', onPress: () => handleDownloadAndNavigate(file)},
+        { text: "Yes", onPress: () => handleDownloadAndNavigate(file) },
       ],
-      {cancelable: false},
+      { cancelable: false }
     );
   };
 
   const handleDownloadAndNavigate = async (file: string) => {
     await handleDownloadModel(file);
-    setCurrentPage('conversation'); // Navigate to conversation after download
+    setCurrentPage("conversation"); // Navigate to conversation after download
   };
 
   const handleBackToModelSelection = () => {
@@ -100,14 +104,14 @@ function App(): React.JSX.Element {
     setConversation(INITIAL_CONVERSATION);
     setSelectedGGUF(null);
     setTokensPerSecond([]);
-    setCurrentPage('modelSelection');
+    setCurrentPage("modelSelection");
   };
 
   const toggleThought = (messageIndex: number) => {
-    setConversation(prev =>
+    setConversation((prev) =>
       prev.map((msg, index) =>
-        index === messageIndex ? {...msg, showThought: !msg.showThought} : msg,
-      ),
+        index === messageIndex ? { ...msg, showThought: !msg.showThought } : msg
+      )
     );
   };
   const fetchAvailableGGUFs = async (modelFormat: string) => {
@@ -117,17 +121,17 @@ function App(): React.JSX.Element {
       const response = await axios.get(
         `https://huggingface.co/api/models/${
           HF_TO_GGUF[modelFormat as keyof typeof HF_TO_GGUF]
-        }`,
+        }`
       );
       console.log(response);
       const files = response.data.siblings.filter((file: any) =>
-        file.rfilename.endsWith('.gguf'),
+        file.rfilename.endsWith(".gguf")
       );
       setAvailableGGUFs(files.map((file: any) => file.rfilename));
     } catch (error) {
       Alert.alert(
-        'Error',
-        'Failed to fetch .gguf files from Hugging Face API.',
+        "Error",
+        "Failed to fetch .gguf files from Hugging Face API."
       );
     } finally {
       setIsFetching(false);
@@ -144,11 +148,11 @@ function App(): React.JSX.Element {
     try {
       const files = await RNFS.readDir(RNFS.DocumentDirectoryPath);
       const ggufFiles = files
-        .filter(file => file.name.endsWith('.gguf'))
-        .map(file => file.name);
+        .filter((file) => file.name.endsWith(".gguf"))
+        .map((file) => file.name);
       setDownloadedModels(ggufFiles);
     } catch (error) {
-      console.error('Error checking downloaded models:', error);
+      console.error("Error checking downloaded models:", error);
     }
   };
   useEffect(() => {
@@ -158,10 +162,10 @@ function App(): React.JSX.Element {
   const checkFileExists = async (filePath: string) => {
     try {
       const fileExists = await RNFS.exists(filePath);
-      console.log('File exists:', fileExists);
+      console.log("File exists:", fileExists);
       return fileExists;
     } catch (error) {
-      console.error('Error checking file existence:', error);
+      console.error("Error checking file existence:", error);
       return false;
     }
   };
@@ -192,28 +196,28 @@ function App(): React.JSX.Element {
       const success = await loadModel(file);
       if (success) {
         Alert.alert(
-          'Info',
-          `File ${destPath} already exists, we will load it directly.`,
+          "Info",
+          `File ${destPath} already exists, we will load it directly.`
         );
         setIsDownloading(false);
         return;
       }
     }
     try {
-      console.log('before download');
+      console.log("before download");
       console.log(isDownloading);
 
-      const destPath = await downloadModel(file, downloadUrl, progress =>
-        setProgress(progress),
+      const destPath = await downloadModel(file, downloadUrl, (progress) =>
+        setProgress(progress)
       );
-      Alert.alert('Success', `Model downloaded to: ${destPath}`);
+      Alert.alert("Success", `Model downloaded to: ${destPath}`);
 
       // After downloading, load the model
       await loadModel(file);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert('Error', `Download failed: ${errorMessage}`);
+        error instanceof Error ? error.message : "Unknown error";
+      Alert.alert("Error", `Download failed: ${errorMessage}`);
     } finally {
       setIsDownloading(false);
     }
@@ -225,28 +229,28 @@ function App(): React.JSX.Element {
       setIsGenerating(false);
       setIsLoading(false);
 
-      setConversation(prev => {
+      setConversation((prev) => {
         const lastMessage = prev[prev.length - 1];
-        if (lastMessage.role === 'assistant') {
+        if (lastMessage.role === "assistant") {
           return [
             ...prev.slice(0, -1),
             {
               ...lastMessage,
-              content: lastMessage.content + '\n\n*Generation stopped by user*',
+              content: lastMessage.content + "\n\n*Generation stopped by user*",
             },
           ];
         }
         return prev;
       });
     } catch (error) {
-      console.error('Error stopping completion:', error);
+      console.error("Error stopping completion:", error);
     }
   };
 
   const loadModel = async (modelName: string) => {
     try {
       const destPath = `${RNFS.DocumentDirectoryPath}/${modelName}`;
-      console.log('destPath : ', destPath);
+      console.log("destPath : ", destPath);
       if (context) {
         await releaseAllLlama();
         setContext(null);
@@ -259,63 +263,63 @@ function App(): React.JSX.Element {
         n_gpu_layers: 1,
       });
       setContext(llamaContext);
-      Alert.alert('Model Loaded', 'The model was successfully loaded.');
+      Alert.alert("Model Loaded", "The model was successfully loaded.");
       return true;
     } catch (error) {
-      console.log('error : ', error);
+      console.log("error : ", error);
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert('Error Loading Model', errorMessage);
+        error instanceof Error ? error.message : "Unknown error";
+      Alert.alert("Error Loading Model", errorMessage);
       return false;
     }
   };
 
   const handleSendMessage = async () => {
     if (!context) {
-      Alert.alert('Model Not Loaded', 'Please load the model first.');
+      Alert.alert("Model Not Loaded", "Please load the model first.");
       return;
     }
     if (!userInput.trim()) {
-      Alert.alert('Input Error', 'Please enter a message.');
+      Alert.alert("Input Error", "Please enter a message.");
       return;
     }
 
     const newConversation: Message[] = [
       ...conversation,
-      {role: 'user', content: userInput},
+      { role: "user", content: userInput },
     ];
     setConversation(newConversation);
-    setUserInput('');
+    setUserInput("");
     setIsLoading(true);
     setIsGenerating(true);
     setAutoScrollEnabled(true);
 
     try {
       const stopWords = [
-        '</s>',
-        '<|end|>',
-        'user:',
-        'assistant:',
-        '<|im_end|>',
-        '<|eot_id|>',
-        '<|end▁of▁sentence|>',
-        '<|end_of_text|>',
-        '<｜end▁of▁sentence｜>',
+        "</s>",
+        "<|end|>",
+        "user:",
+        "assistant:",
+        "<|im_end|>",
+        "<|eot_id|>",
+        "<|end▁of▁sentence|>",
+        "<|end_of_text|>",
+        "<｜end▁of▁sentence｜>",
       ];
       const chat = newConversation;
 
       // Append a placeholder for the assistant's response
-      setConversation(prev => [
+      setConversation((prev) => [
         ...prev,
         {
-          role: 'assistant',
-          content: '',
+          role: "assistant",
+          content: "",
           thought: undefined,
           showThought: false,
         },
       ]);
-      let currentAssistantMessage = '';
-      let currentThought = '';
+      let currentAssistantMessage = "";
+      let currentThought = "";
       let inThinkBlock = false;
       interface CompletionData {
         token: string;
@@ -337,14 +341,14 @@ function App(): React.JSX.Element {
           const token = data.token; // Extract the token
           currentAssistantMessage += token; // Append token to the current message
 
-          if (token.includes('<think>')) {
+          if (token.includes("<think>")) {
             inThinkBlock = true;
-            currentThought = token.replace('<think>', '');
-          } else if (token.includes('</think>')) {
+            currentThought = token.replace("<think>", "");
+          } else if (token.includes("</think>")) {
             inThinkBlock = false;
-            const finalThought = currentThought.replace('</think>', '').trim();
+            const finalThought = currentThought.replace("</think>", "").trim();
 
-            setConversation(prev => {
+            setConversation((prev) => {
               const lastIndex = prev.length - 1;
               const updated = [...prev];
 
@@ -352,7 +356,7 @@ function App(): React.JSX.Element {
                 ...updated[lastIndex],
                 content: updated[lastIndex].content.replace(
                   `<think>${finalThought}</think>`,
-                  '',
+                  ""
                 ),
                 thought: finalThought,
               };
@@ -360,16 +364,16 @@ function App(): React.JSX.Element {
               return updated;
             });
 
-            currentThought = '';
+            currentThought = "";
           } else if (inThinkBlock) {
             currentThought += token;
           }
 
           const visibleContent = currentAssistantMessage
-            .replace(/<think>.*?<\/think>/gs, '')
+            .replace(/<think>.*?<\/think>/gs, "")
             .trim();
 
-          setConversation(prev => {
+          setConversation((prev) => {
             const lastIndex = prev.length - 1;
             const updated = [...prev];
             updated[lastIndex].content = visibleContent;
@@ -378,20 +382,20 @@ function App(): React.JSX.Element {
 
           if (autoScrollEnabled && scrollViewRef.current) {
             requestAnimationFrame(() => {
-              scrollViewRef.current?.scrollToEnd({animated: false});
+              scrollViewRef.current?.scrollToEnd({ animated: false });
             });
           }
-        },
+        }
       );
 
-      setTokensPerSecond(prev => [
+      setTokensPerSecond((prev) => [
         ...prev,
         parseFloat(result.timings.predicted_per_second.toFixed(2)),
       ]);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      Alert.alert('Error During Inference', errorMessage);
+        error instanceof Error ? error.message : "Unknown error";
+      Alert.alert("Error During Inference", errorMessage);
     } finally {
       setIsLoading(false);
       setIsGenerating(false);
@@ -401,18 +405,20 @@ function App(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={{flex: 1}}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <ScrollView
           style={styles.scrollView}
           ref={scrollViewRef}
           onScroll={handleScroll}
-          scrollEventThrottle={16}>
+          scrollEventThrottle={16}
+        >
           <Text style={styles.title}>Llama Chat</Text>
-          {currentPage === 'modelSelection' && !isDownloading && (
+          {currentPage === "modelSelection" && !isDownloading && (
             <View style={styles.card}>
               <Text style={styles.subtitle}>Choose a model format</Text>
-              {modelFormats.map(format => (
+              {modelFormats.map((format) => (
                 <TouchableOpacity
                   key={format.label}
                   style={[
@@ -420,7 +426,8 @@ function App(): React.JSX.Element {
                     selectedModelFormat === format.label &&
                       styles.selectedButton,
                   ]}
-                  onPress={() => handleFormatSelection(format.label)}>
+                  onPress={() => handleFormatSelection(format.label)}
+                >
                   <Text style={styles.buttonText}>{format.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -443,10 +450,11 @@ function App(): React.JSX.Element {
                           onPress={() =>
                             isDownloaded
                               ? (loadModel(file),
-                                setCurrentPage('conversation'),
+                                setCurrentPage("conversation"),
                                 setSelectedGGUF(file))
                               : handleGGUFSelection(file)
-                          }>
+                          }
+                        >
                           <View style={styles.modelButtonContent}>
                             <View style={styles.modelStatusContainer}>
                               {isDownloaded ? (
@@ -466,14 +474,24 @@ function App(): React.JSX.Element {
                                   selectedGGUF === file &&
                                     styles.selectedButtonText,
                                   isDownloaded && styles.downloadedText,
-                                ]}>
-                                {file.split('-').pop()}
+                                ]}
+                              >
+                                {file.split("-")[-1] == "imat"
+                                  ? file
+                                  : file.split("-").pop()}
                               </Text>
                             </View>
                             {isDownloaded && (
                               <View style={styles.loadModelIndicator}>
                                 <Text style={styles.loadModelText}>
                                   TAP TO LOAD →
+                                </Text>
+                              </View>
+                            )}
+                            {!isDownloaded && (
+                              <View style={styles.downloadIndicator}>
+                                <Text style={styles.downloadText}>
+                                  DOWNLOAD →
                                 </Text>
                               </View>
                             )}
@@ -486,7 +504,7 @@ function App(): React.JSX.Element {
               )}
             </View>
           )}
-          {currentPage === 'conversation' && !isDownloading && (
+          {currentPage === "conversation" && !isDownloading && (
             <View style={styles.chatWrapper}>
               <Text style={styles.subtitle2}>Chatting with {selectedGGUF}</Text>
               <View style={styles.chatContainer}>
@@ -498,23 +516,26 @@ function App(): React.JSX.Element {
                     <View
                       style={[
                         styles.messageBubble,
-                        msg.role === 'user'
+                        msg.role === "user"
                           ? styles.userBubble
                           : styles.llamaBubble,
-                      ]}>
+                      ]}
+                    >
                       <Text
                         style={[
                           styles.messageText,
-                          msg.role === 'user' && styles.userMessageText,
-                        ]}>
+                          msg.role === "user" && styles.userMessageText,
+                        ]}
+                      >
                         {msg.thought && (
                           <TouchableOpacity
                             onPress={() => toggleThought(index + 1)} // +1 to account for slice(1)
-                            style={styles.toggleButton}>
+                            style={styles.toggleButton}
+                          >
                             <Text style={styles.toggleText}>
                               {msg.showThought
-                                ? '▼ Hide Thought'
-                                : '▶ Show Thought'}
+                                ? "▼ Hide Thought"
+                                : "▶ Show Thought"}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -531,10 +552,11 @@ function App(): React.JSX.Element {
                         <Markdown>{msg.content}</Markdown>
                       </Text>
                     </View>
-                    {msg.role === 'assistant' && (
+                    {msg.role === "assistant" && (
                       <Text
                         style={styles.tokenInfo}
-                        onPress={() => console.log('index : ', index)}>
+                        onPress={() => console.log("index : ", index)}
+                      >
                         {tokensPerSecond[Math.floor(index / 2)]} tokens/s
                       </Text>
                     )}
@@ -552,7 +574,7 @@ function App(): React.JSX.Element {
           )}
         </ScrollView>
         <View style={styles.bottomContainer}>
-          {currentPage === 'conversation' && (
+          {currentPage === "conversation" && (
             <>
               <View style={styles.inputContainer}>
                 <View style={styles.inputRow}>
@@ -566,16 +588,18 @@ function App(): React.JSX.Element {
                   {isGenerating ? (
                     <TouchableOpacity
                       style={styles.stopButton}
-                      onPress={stopGeneration}>
+                      onPress={stopGeneration}
+                    >
                       <Text style={styles.buttonText}>□ Stop</Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
                       style={styles.sendButton}
                       onPress={handleSendMessage}
-                      disabled={isLoading}>
+                      disabled={isLoading}
+                    >
                       <Text style={styles.buttonText}>
-                        {isLoading ? 'Sending...' : 'Send'}
+                        {isLoading ? "Sending..." : "Send"}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -583,7 +607,8 @@ function App(): React.JSX.Element {
               </View>
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={handleBackToModelSelection}>
+                onPress={handleBackToModelSelection}
+              >
                 <Text style={styles.backButtonText}>
                   ← Back to Model Selection
                 </Text>
@@ -599,24 +624,24 @@ function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   scrollView: {
     paddingBottom: 20,
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontWeight: "700",
+    color: "#1E293B",
     marginVertical: 24,
-    textAlign: 'center',
+    textAlign: "center",
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     margin: 16,
-    shadowColor: '#475569',
+    shadowColor: "#475569",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -627,24 +652,24 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#334155',
+    fontWeight: "600",
+    color: "#334155",
     marginBottom: 16,
     marginTop: 16,
   },
   subtitle2: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 16,
-    color: '#93C5FD',
+    color: "#93C5FD",
   },
   button: {
-    backgroundColor: '#93C5FD', // Lighter blue
+    backgroundColor: "#93C5FD", // Lighter blue
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
     marginVertical: 6,
-    shadowColor: '#93C5FD', // Matching lighter shadow color
+    shadowColor: "#93C5FD", // Matching lighter shadow color
     shadowOffset: {
       width: 0,
       height: 2,
@@ -654,35 +679,35 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   selectedButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   chatWrapper: {
     flex: 1,
     padding: 16,
   },
   backButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
     marginHorizontal: 16,
     marginTop: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   backButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   chatContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -693,58 +718,58 @@ const styles = StyleSheet.create({
   messageBubble: {
     padding: 12,
     borderRadius: 12,
-    maxWidth: '80%',
+    maxWidth: "80%",
   },
   userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#3B82F6',
+    alignSelf: "flex-end",
+    backgroundColor: "#3B82F6",
   },
   llamaBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    alignSelf: "flex-start",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
   },
   messageText: {
     fontSize: 16,
-    color: '#334155',
+    color: "#334155",
   },
   userMessageText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   tokenInfo: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: "#94A3B8",
     marginTop: 4,
-    textAlign: 'right',
+    textAlign: "right",
   },
   inputContainer: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: "#E2E8F0",
   },
   input: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#334155',
+    color: "#334155",
     minHeight: 50,
   },
   inputRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   sendButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
-    shadowColor: '#3B82F6',
+    shadowColor: "#3B82F6",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -752,43 +777,43 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 2,
-    alignSelf: 'stretch',
-    justifyContent: 'center',
+    alignSelf: "stretch",
+    justifyContent: "center",
   },
 
   stopButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: "#FF3B30",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
-    alignSelf: 'stretch',
-    justifyContent: 'center',
+    alignSelf: "stretch",
+    justifyContent: "center",
   },
   greetingText: {
     fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
+    fontWeight: "500",
+    textAlign: "center",
     marginVertical: 12,
-    color: '#64748B', // Soft gray that complements #2563EB
+    color: "#64748B", // Soft gray that complements #2563EB
   },
   thoughtContainer: {
     marginTop: 8,
     padding: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#94A3B8',
+    borderLeftColor: "#94A3B8",
   },
   thoughtTitle: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 4,
   },
   thoughtText: {
-    color: '#475569',
+    color: "#475569",
     fontSize: 12,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     lineHeight: 16,
   },
   toggleButton: {
@@ -796,30 +821,30 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   toggleText: {
-    color: '#3B82F6',
+    color: "#3B82F6",
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   bottomContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    borderTopColor: "#E2E8F0",
+    paddingBottom: Platform.OS === "ios" ? 20 : 10,
   },
   modelContainer: {
     marginVertical: 6,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   modelButton: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: "#EFF6FF",
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    shadowColor: '#3B82F6',
+    borderColor: "#BFDBFE",
+    shadowColor: "#3B82F6",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -830,55 +855,55 @@ const styles = StyleSheet.create({
   },
 
   downloadedModelButton: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
+    backgroundColor: "#EFF6FF",
+    borderColor: "#3B82F6",
     borderWidth: 1,
   },
 
   modelButtonContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 
   modelStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
 
   downloadedIndicator: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: "#DBEAFE",
     padding: 4,
     borderRadius: 6,
     marginRight: 8,
   },
 
   notDownloadedIndicator: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     padding: 4,
     borderRadius: 6,
     marginRight: 8,
   },
 
   downloadedIcon: {
-    color: '#3B82F6',
+    color: "#3B82F6",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   notDownloadedIcon: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   downloadedText: {
-    color: '#1E40AF',
+    color: "#1E40AF",
   },
 
   loadModelIndicator: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: "#DBEAFE",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 6,
@@ -886,22 +911,36 @@ const styles = StyleSheet.create({
   },
 
   loadModelText: {
-    color: '#3B82F6',
-    fontSize: 12,
-    fontWeight: '600',
+    color: "#3B82F6",
+    fontSize: 8,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+
+  downloadIndicator: {
+    backgroundColor: "#DCF9E5", // Light green background
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+
+  downloadText: {
+    color: "#16A34A", // Green text
+    fontSize: 8,
+    fontWeight: "600",
     letterSpacing: 0.5,
   },
 
   buttonTextGGUF: {
-    color: '#1E40AF',
+    color: "#1E40AF",
     fontSize: 14,
-    fontWeight: '500',
-    
+    fontWeight: "500",
   },
 
   selectedButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });
 
