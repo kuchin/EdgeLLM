@@ -59,7 +59,10 @@ For setting up Android Studio, follow this excellent tutorial by Expo : [Android
 
 Let's start this project! 
 
-You can find the full code for this project [here](https://github.com/MekkCyber/EdgeLLM)
+You can find the full code for this project in the `EdgeLLM` repo [here](https://github.com/MekkCyber/EdgeLLM), there are two folders:
+
+- `EdgeLLMBasic`: A basic implementation of the app with a simple chat interface
+- `EdgeLLMPlus`: An enhanced version of the app with a more complex chat interface and additional features
 
 First, we need to initiate the app using @react-native-community/cli:
 
@@ -176,7 +179,7 @@ cd ios && pod install
 
 ## **4. How to Run the Demo**
 
-To run the project, follow these steps:
+To run the project, and see how it looks like on your own virtual device, follow these steps:
 
 1. **Clone the Repository**:
    ```bash
@@ -233,7 +236,7 @@ First, let's install the required packages. We aim to load models from the [Hugg
 npm install axios react-native-fs llama.rn
 ```
 
-Let's run the app on our emulator/simulator so we can start the development
+Let's run the app on our emulator/simulator as we showed before so we can start the development
 
 ### **State Management**
 
@@ -256,7 +259,7 @@ We will have a screen that looks like this:
 
 ![alt text](assets/hello_world.png)
 
-The text "Hello World" is not displayed properly because we are using a simple `View` component, we need to use a `SafeAreaView` component to display the text correctly, we will deal with that in the UI section.
+The text "Hello World" is not displayed properly because we are using a simple `View` component, we need to use a `SafeAreaView` component to display the text correctly, we will deal with that in the next sections.
 
 Now let's think about what our app needs to track for now:
 
@@ -274,7 +277,7 @@ Now let's think about what our app needs to track for now:
    - A boolean to check if the model is downloading
    - A boolean to check if the model is generating a response
 
-Here's how we implement this using React's useState hook (we will need to import it from react)
+Here's how we implement these states using React's useState hook (we will need to import it from react)
 
 ```typescript
 import { useState } from 'react';
@@ -317,7 +320,7 @@ Let's tackle these one by one in the next sections...
 
 ### Fetching available GGUF models from the Hub
 
-Let's start by defining the model formats our app is going to support and their repositories. Of course `llama.rn` is a binding for `llama.cpp` so we need to load `GGUF` files. To find GGUF repositories for the models we want to support, we can use the search bar on [Hugging Face](https://huggingface.co/) and search for `GGUF` files for a specific model, or use the script provided in this project `quantize_gguf.py` to quantize the model ourself and upload the files to our hub repository.
+Let's start by defining the model formats our app is going to support and their repositories. Of course `llama.rn` is a binding for `llama.cpp` so we need to load `GGUF` files. To find GGUF repositories for the models we want to support, we can use the search bar on [Hugging Face](https://huggingface.co/) and search for `GGUF` files for a specific model, or use the script provided in this project `quantize_gguf.py` to quantize the model ourselves and upload the files to our hub repository.
 
 ```typescript
 const modelFormats = [
@@ -385,7 +388,8 @@ const fetchAvailableGGUFs = async (modelFormat: string) => {
 };
 ```
 > **Note:** Ensure to import axios and Alert at the top of your file if not already imported.
-We need to test that the function is working correclty, let's add a button to the UI to trigger the function, instead of `View` we will use a `SafeAreaView` component, and we will display the available GGUF files in a `ScrollView` component. the `onPress` function is triggered when the button is pressed:
+
+We need to test that the function is working correclty, let's add a button to the UI to trigger the function, instead of `View` we will use a `SafeAreaView` (more on that later) component, and we will display the available GGUF files in a `ScrollView` component. the `onPress` function is triggered when the button is pressed:
 
 ```typescript
 <TouchableOpacity onPress={() => fetchAvailableGGUFs('Llama-3.2-1B-Instruct')}>
@@ -398,6 +402,7 @@ We need to test that the function is working correclty, let's add a button to th
 </ScrollView>
 ```
 This should look something like this : 
+
 ![alt text](assets/available_gguf_files_test.png)
 
 > **Note:** For the whole code until now you can check the `first_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/first_checkpoint/EdgeLLMBasic/App.tsx)
@@ -436,9 +441,9 @@ We could have implemented the `api` requests inside the `handleDownloadModel` fu
 
 Inside the `downloadModel` function we use the `RNFS` module, part of the `react-native-fs` library, to access the device's file system. It allows developers to read, write, and manage files on the device's storage. In this case, the model is stored in the app's Documents folder using `RNFS.DocumentDirectoryPath`, ensuring that the downloaded file is accessible to the app. The progress bar is updated accordingly to reflect the current download status and the progress bar component is defined in the `components` folder.
 
-Let's create `src/api/model.ts` and copy the code from the [`src/api/model.ts`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/api/model.ts) file in the repo. The logic should be simple to understand. The same goes for the progress bar component in the [`src/components`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/components/ProgressBar.tsx) folder.
+Let's create `src/api/model.ts` and copy the code from the [`src/api/model.ts`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/api/model.ts) file in the repo. The logic should be simple to understand. The same goes for the progress bar component in the [`src/components`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/components/ProgressBar.tsx) folder, it's a simple colored `View` where the width is the progress of the download.
 
-Now we need to test the `handleDownloadModel` function, let's add a button to the UI to trigger the function, and we will display the progress bar in the `ProgressBar` component. This will be added under the scroll we added before.
+Now we need to test the `handleDownloadModel` function, let's add a button to the UI to trigger the function, and we will display the progress bar. This will be added under the `ScrollView` we added before.
 
 ```typescript
 <View style={{ marginTop: 30, marginBottom: 15 }}>
@@ -459,7 +464,7 @@ Now we need to test the `handleDownloadModel` function, let's add a button to th
     : 'Please select a model format before downloading'}
 </Text>
 <TouchableOpacity
-  onPress={() => {          // Then download the model
+  onPress={() => {
     handleDownloadModel("Llama-3.2-1B-Instruct-Q2_K.gguf");
   }}
 >
@@ -468,8 +473,9 @@ Now we need to test the `handleDownloadModel` function, let's add a button to th
 {isDownloading && <ProgressBar progress={progress} />}
 ```
 
-In the UI we show a list of the supported model formats and a button to download the model, when the user chooses the model format and clicks on the button the progress bar should be displayed and the download should start. In the test we hardcoded the model to download is `Llama-3.2-1B-Instruct-Q2_K.gguf`, so we need to select `Llama-3.2-1B-Instruct` as a model format for the function to work, it should look like this:
-![alt text](assets/download_model.png)
+In the UI we show a list of the supported model formats and a button to download the model, when the user chooses the model format and clicks on the button the progress bar should be displayed and the download should start. In the test we hardcoded the model to download `Llama-3.2-1B-Instruct-Q2_K.gguf`, so we need to select `Llama-3.2-1B-Instruct` as a model format for the function to work, it should look like this:
+
+![alt text](assets/download_image.png)
 
 > **Note:** For the whole code until now you can check the `second_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/second_checkpoint/EdgeLLMBasic/App.tsx)
 
@@ -630,7 +636,7 @@ The result should look like this:
 
 > **Note:** For the whole code until now you can check the `fourth_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/fourth_checkpoint/EdgeLLMBasic/App.tsx)
 
-### **The UI && Logic**
+### **The UI & Logic**
 
 Now that we have the core functionality implemented, we can focus on the UI. The UI is straightforward, consisting of a model selection screen with a list of models and a chat interface that includes a conversation history and a user input field. During the model download phase, a progress bar is displayed. We intentionally avoid adding many screens to keep the app simple and focused on its core functionality. To keep track of which part of the app is being used, we will use a an other state variable called `currentPage`, it will be a string that can be either `modelSelection` or `conversation`. We add it to the `App.tsx` file.
 
@@ -707,7 +713,7 @@ Next, let's add the view to show the list of GGUF files already available for th
   )
 }
 ```
-We need to only show the list of GGUF files if the `selectedModelFormat` state is not null, which means a model format is selected by the user. The app should look like this for now : 
+We need to only show the list of GGUF files if the `selectedModelFormat` state is not null, which means a model format is selected by the user.
 
 ![alt text](assets/available_ggufs.png)
 
@@ -738,7 +744,7 @@ const handleDownloadAndNavigate = async (file: string) => {
 
 `handleDownloadAndNavigate` is a simple function that will download the selected GGUF file by calling `handleDownloadModel` (implemented in the previous sections) and navigate to the conversation screen after the download is complete.
 
-Now after clicking on a GGUF file, we should have an alert to confirm or cancel the download, the app should look like this:
+Now after clicking on a GGUF file, we should have an alert to confirm or cancel the download :
 
 ![alt text](assets/confirm_download.png)
 
