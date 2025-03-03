@@ -14,41 +14,42 @@ Did you ever wonder how you can create a mobile app to chat with LLMs locally? H
 This blog is for anyone who:
 
 - Is curious about integrating AI into mobile apps
-- Wants to build a conversational app that works on both Android and iOS
+- Wants to build a conversational app that works on both Android and iOS using React Native
 - Is interested in privacy-focused AI applications that run completely offline
 
-By the end of this guide, you'll have a working app to chat with your favorite small hub models.
+By the end of this guide, you'll have a working app to chat with your favorite models.
 
 ---
 
 ## **1. Setting Up Your Environment**
 
-React Native requires some setup before you can start coding.
+React Native is a popular framework for building mobile applications using JavaScript and React. It allows developers to create apps that run on both Android and iOS platforms while sharing a significant amount of code, which speeds up the development process and reduces maintenance efforts.
+
+Before you can start coding with React Native, you need to set up your environment properly.
 
 ### **Tools You Need**
 
-1. **Node.js:** Install from [Node.js downloads](https://nodejs.org/en/download)
-2. **react-native-community/cli:** Run the following command to install:
+1. **Node.js:** Node.js is a JavaScript runtime that allows you to run JavaScript code. It is essential for managing packages and dependencies in your React Native project. You can install it from [Node.js downloads](https://nodejs.org/en/download).
+
+2. **react-native-community/cli:** This command installs the React Native command line interface (CLI), which provides tools to create, build, and manage your React Native projects. Run the following command to install it:
 
 ```bash
 npm i @react-native-community/cli
 ```
+> **Note:** If you are prompted to install CocoaPods, it's not necessary if you are using a virtual device, as we are not going to be using Xcode.
 
-### **Emulator Setup**
 
-To run your app during development you will need an emulator/simulator:
+### **Virtual Device Setup**
 
-- **For Mac Users:**
+To run your app during development, you will need an emulator or a simulator:
 
-  - Can run both Android emulators and iOS simulators
+- **If you are on macOS:**
   - For iOS: Install Xcode -> Open Developer Tools -> Simulator
   - For Android: Install Java Runtime and Android Studio -> Go to Device Manager and Create an emulator
 
-- **For PC Users:**
-  - Install Java Runtime and Android Studio for Android development
-  - For iOS testing options:
-    - Cloud-based simulators like [LambdaTest](https://www.lambdatest.com/test-on-iphone-simulator) and [BrowserStack](https://www.browserstack.com/test-on-ios-simulator)
-    - Third party emulators that try to mimic iOS behavior but we didn't test them.
+- **If you are on Windows or Linux:**
+  - For iOS: We need to rely on cloud-based simulators like [LambdaTest](https://www.lambdatest.com/test-on-iphone-simulator) and [BrowserStack](https://www.browserstack.com/test-on-ios-simulator)
+  - For Android: Install Java Runtime and Android Studio -> Go to Device Manager and Create an emulator
 
 If you are curious about the difference between simulators and emulators, you can read this article: [Difference between Emulator and Simulator](https://www.browserstack.com/guide/difference-between-emulator-and-simulator), but to put it simply, emulators replicate both hardware and software, while simulators only replicate software.
 
@@ -109,7 +110,7 @@ The app folder architecture for a new project includes:
 
 Debugging a React Native application requires either an emulator/simulator or a physical device. We'll focus on using an emulator since it provides a more streamlined development experience with your code editor and debugging tools side by side.
 
-We start by ensuring our development environment is ready:
+We start by ensuring our development environment is ready, we need to be in the project folder and run the following commands:
 
 ```bash
 # Install dependencies
@@ -173,13 +174,58 @@ cd android && ./gradlew clean
 cd ios && pod install
 ```
 
-## **4. App Implementation**
+## **4. How to Run the Demo**
+
+To run the project, follow these steps:
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/MekkCyber/EdgeLLM.git
+   ```
+
+2. **Navigate to the Project Directory**:
+   ```bash
+   cd EdgeLLMPlus 
+   #or 
+   cd EdgeLLMBasic
+   ```
+
+3. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+4. **Navigate to the iOS Folder and Install**:
+   ```bash
+   cd ios
+   pod install
+   ```
+
+5. **Start the Metro Bundler**:
+   Run the following command in the project folder (EdgeLLMPlus or EdgeLLMBasic):
+   ```bash
+   npm start
+   ```
+
+6. **Launch the App on iOS or Android Simulator**:
+   Open another terminal and run:
+   ```bash
+   # For iOS
+   npm run ios
+
+   # For Android
+   npm run android
+   ```
+
+This will build and launch the app on your emulator/simulator to test the project before we start coding.
+
+## **5. App Implementation**
 
 ### **Installing Dependencies**
 
 First, let's install the required packages. We aim to load models from the [Hugging Face Hub](https://huggingface.co/) and run them locally. To achieve this, we need to install :
 
-- [`llama.rn`](https://github.com/mybigday/llama.rn): a binding for [`llama.cpp`](https://github.com/ggerganov/llama.cpp) tailored for React Native apps.
+- [`llama.rn`](https://github.com/mybigday/llama.rn): a binding for [`llama.cpp`](https://github.com/ggerganov/llama.cpp) for React Native apps.
 - `react-native-fs`: allows us to manage the device's file system in a React Native environment.
 - `axios`: a library for sending requests to the Hugging Face Hub API.
 
@@ -195,10 +241,10 @@ We will start by deleting everyting from the `App.tsx` file, and creating an emp
 
 ```typescript
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 
 function App(): React.JSX.Element {
-  return <View> </View>;
+  return <View> <Text>Hello World</Text> </View>;
 }
 const styles = StyleSheet.create({});
 
@@ -207,12 +253,12 @@ export default App;
 
 Let's think about what our app needs to track for now:
 
-1. **Chat-related State**:
+1. **Chat-related**:
 
    - The conversation history (messages between user and AI)
    - Current user input
 
-2. **Model-related State**:
+2. **Model-related**:
    - Selected model format (like Llama 1B or Qwen 1.5B)
    - Available GGUF files list for each model format
    - Selected GGUF file to download
@@ -237,6 +283,7 @@ const INITIAL_CONVERSATION: Message[] = [
       content:
         'This is a conversation between user and assistant, a friendly chatbot.',
     },
+];
 
 const [conversation, setConversation] = useState<Message[]>(INITIAL_CONVERSATION);
 const [selectedModelFormat, setSelectedModelFormat] = useState<string>('');
@@ -260,7 +307,7 @@ Now that we have our basic state management set up, we need to think about how t
 
 Let's tackle these one by one in the next sections...
 
-### **Fetching available GGUF models from the Hub**
+### Fetching available GGUF models from the Hub
 
 Let's start by defining the model formats our app is going to support and their corresponding GGUF repositories:
 
