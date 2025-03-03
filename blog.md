@@ -139,7 +139,7 @@ For debugging we will use Chrome DevTools as in web development :
 1. Press `j` in the Metro bundler terminal to launch Chrome DevTools
 2. Navigate to the "Sources" tab
 
-![alt text](assets/blog_images/dev_tools.png)
+![alt text](assets/dev_tools.png)
 3. Find your source files  
 4. Set breakpoints by clicking on line numbers  
 5. Use debugging controls (top right corner):  
@@ -250,8 +250,15 @@ const styles = StyleSheet.create({});
 
 export default App;
 ```
+Inside the `return` statement of the `App` function we define the UI rendered, and outside we define the logic, but all code will be inside the `App` function.
 
-Let's think about what our app needs to track for now:
+We will have a screen that looks like this:
+
+![alt text](assets/hello_world.png)
+
+The text "Hello World" is not displayed properly because we are using a simple `View` component, we need to use a `SafeAreaView` component to display the text correctly, we will deal with that in the UI section.
+
+Now let's think about what our app needs to track for now:
 
 1. **Chat-related**:
 
@@ -295,6 +302,7 @@ const [context, setContext] = useState<any>(null);
 const [isDownloading, setIsDownloading] = useState<boolean>(false);
 const [isGenerating, setIsGenerating] = useState<boolean>(false);
 ```
+This will be added to the `App.tsx` file inside the `App` function but outside the `return` statement as it's part of the logic.
 
 The Message type defines the structure of chat messages, specifying that each message must have a role (either 'user' or 'assistant' or 'system') and content (the actual message text).
 
@@ -309,7 +317,7 @@ Let's tackle these one by one in the next sections...
 
 ### Fetching available GGUF models from the Hub
 
-Let's start by defining the model formats our app is going to support and their corresponding GGUF repositories:
+Let's start by defining the model formats our app is going to support and their repositories. Of course `llama.rn` is a binding for `llama.cpp` so we need to load `GGUF` files. To find GGUF repositories for the models we want to support, we can use the search bar on [Hugging Face](https://huggingface.co/) and search for `GGUF` files for a specific model, or use the script provided in this project `quantize_gguf.py` to quantize the model ourself and upload the files to our hub repository.
 
 ```typescript
 const modelFormats = [
@@ -320,19 +328,19 @@ const modelFormats = [
 ];
 
 const HF_TO_GGUF = {
-  'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
-  'DeepSeek-R1-Distill-Qwen-1.5B':
-    'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF',
-  'Qwen2-0.5B-Instruct': 'Qwen/Qwen2-0.5B-Instruct-GGUF',
-  'SmolLM2-1.7B-Instruct': 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
-};
+    "Llama-3.2-1B-Instruct": "medmekk/Llama-3.2-1B-Instruct.GGUF",
+    "DeepSeek-R1-Distill-Qwen-1.5B":
+      "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
+    "Qwen2-0.5B-Instruct": "medmekk/Qwen2.5-0.5B-Instruct.GGUF",
+    "SmolLM2-1.7B-Instruct": "medmekk/SmolLM2-1.7B-Instruct.GGUF",
+  };
 ```
 
 The `HF_TO_GGUF` object maps user-friendly model names to their corresponding Hugging Face repository paths. For example:
 
-- When a user selects 'Llama-3.2-1B-Instruct', it maps to [`bartowski/Llama-3.2-1B-Instruct-GGUF`](https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF) which is one of the repositories containing the GGUF files for the Llama 3.2 1B Instruct model.
+- When a user selects 'Llama-3.2-1B-Instruct', it maps to [`medmekk/Llama-3.2-1B-Instruct.GGUF`](https://huggingface.co/medmekk/Llama-3.2-1B-Instruct-GGUF) which is one of the repositories containing the GGUF files for the Llama 3.2 1B Instruct model.
 
-The `modelFormats` array contains the list of model options that will be displayed to users in the selection screen, we chose [Llama 3.2 1B Instruct](https://huggingface.co/meta-llama/Llama-3.2-1B), [DeepSeek R1 Distill Qwen 1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B), [Qwen 2 0.5B Instruct](https://huggingface.co/Qwen/Qwen2-0.5B-Instruct) and [SmolLM2 1.7B Instruct](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct) as they are the most popular models.
+The `modelFormats` array contains the list of model options that will be displayed to users in the selection screen, we chose [Llama 3.2 1B Instruct](https://huggingface.co/meta-llama/Llama-3.2-1B), [DeepSeek R1 Distill Qwen 1.5B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B), [Qwen 2 0.5B Instruct](https://huggingface.co/Qwen/Qwen2-0.5B-Instruct) and [SmolLM2 1.7B Instruct](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct) as they are the most popular small models.
 
 Next, let's create a way to fetch and display available GGUF model files from the hub for our selected model format.
 
@@ -376,6 +384,23 @@ const fetchAvailableGGUFs = async (modelFormat: string) => {
   }
 };
 ```
+> **Note:** Ensure to import axios and Alert at the top of your file if not already imported.
+We need to test that the function is working correclty, let's add a button to the UI to trigger the function, instead of `View` we will use a `SafeAreaView` component, and we will display the available GGUF files in a `ScrollView` component. the `onPress` function is triggered when the button is pressed:
+
+```typescript
+<TouchableOpacity onPress={() => fetchAvailableGGUFs('Llama-3.2-1B-Instruct')}>
+  <Text>Fetch GGUF Files</Text>
+</TouchableOpacity>
+<ScrollView>
+  {availableGGUFs.map((file) => (
+    <Text key={file}>{file}</Text>
+  ))}
+</ScrollView>
+```
+This should look something like this : 
+![alt text](assets/available_gguf_files_test.png)
+
+> **Note:** For the whole code until now you can check the `first_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/first_checkpoint/EdgeLLMBasic/App.tsx)
 
 ### **Model Download Implementation**
 
@@ -395,14 +420,6 @@ const handleDownloadModel = async (file: string) => {
     const destPath = await downloadModel(file, downloadUrl, progress =>
       setProgress(progress),
     );
-
-    // Ensure the model is loaded only if the download was successful
-    if (destPath) {
-      // Will be implemented in the next section
-      await loadModel(file);
-    } else {
-      throw new Error('Model download path is invalid.');
-    }
   } catch (error) {
     const errorMessage =
       error instanceof Error
@@ -415,9 +432,47 @@ const handleDownloadModel = async (file: string) => {
 };
 ```
 
-The `downloadModel` function, located in `src/api`, accepts three parameters: `modelName`, `downloadUrl`, and a `progress` callback function. This callback is triggered during the download process to update the progress. The `RNFS` module, part of the `react-native-fs` library, provides file system access for React Native applications. It allows developers to read, write, and manage files on the device's storage. In this case, the model is stored in the app's Documents folder using `RNFS.DocumentDirectoryPath`, ensuring that the downloaded file is accessible to the app. The progress bar is updated accordingly to reflect the current download status and the progress bar component is defined in the `components` folder.
+We could have implemented the `api` requests inside the `handleDownloadModel` function, but we will keep it in a separate file to keep the code clean and readable. `handleDownloadModel` calls the `downloadModel` function, located in `src/api`, which accepts three parameters: `modelName`, `downloadUrl`, and a `progress` callback function. This callback is triggered during the download process to update the progress. Before downloading we need to have the `selectedModelFormat` state set to the model format we want to download.
+
+Inside the `downloadModel` function we use the `RNFS` module, part of the `react-native-fs` library, to access the device's file system. It allows developers to read, write, and manage files on the device's storage. In this case, the model is stored in the app's Documents folder using `RNFS.DocumentDirectoryPath`, ensuring that the downloaded file is accessible to the app. The progress bar is updated accordingly to reflect the current download status and the progress bar component is defined in the `components` folder.
 
 Let's create `src/api/model.ts` and copy the code from the [`src/api/model.ts`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/api/model.ts) file in the repo. The logic should be simple to understand. The same goes for the progress bar component in the [`src/components`](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/src/components/ProgressBar.tsx) folder.
+
+Now we need to test the `handleDownloadModel` function, let's add a button to the UI to trigger the function, and we will display the progress bar in the `ProgressBar` component. This will be added under the scroll we added before.
+
+```typescript
+<View style={{ marginTop: 30, marginBottom: 15 }}>
+  {Object.keys(HF_TO_GGUF).map((format) => (
+    <TouchableOpacity
+      key={format}
+      onPress={() => {
+        setSelectedModelFormat(format);
+      }}
+    >
+      <Text> {format} </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+<Text style={{ marginBottom: 10, color: selectedModelFormat ? 'black' : 'gray' }}>
+  {selectedModelFormat 
+    ? `Selected: ${selectedModelFormat}` 
+    : 'Please select a model format before downloading'}
+</Text>
+<TouchableOpacity
+  onPress={() => {          // Then download the model
+    handleDownloadModel("Llama-3.2-1B-Instruct-Q2_K.gguf");
+  }}
+>
+  <Text>Download Model</Text>
+</TouchableOpacity>
+{isDownloading && <ProgressBar progress={progress} />}
+```
+
+In the UI we show a list of the supported model formats and a button to download the model, when the user chooses the model format and clicks on the button the progress bar should be displayed and the download should start. In the test we hardcoded the model to download is `Llama-3.2-1B-Instruct-Q2_K.gguf`, so we need to select `Llama-3.2-1B-Instruct` as a model format for the function to work, it should look like this:
+![alt text](assets/download_model.png)
+
+> **Note:** For the whole code until now you can check the `second_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/second_checkpoint/EdgeLLMBasic/App.tsx)
+
 
 ### **Model Loading and Initialization**
 
@@ -450,7 +505,7 @@ const loadModel = async (modelName: string) => {
       n_ctx: 2048,
       n_gpu_layers: 1
     });
-
+    console.log("llamaContext", llamaContext);
     setContext(llamaContext);
     return true;
   } catch (error) {
@@ -459,6 +514,18 @@ const loadModel = async (modelName: string) => {
   }
 };
 ```
+We need to call the `loadModel` function when the user clicks on the download button, so we need to add it inside the `handleDownloadModel` function right after the download is complete if it's successful.
+
+```typescript
+// inside the handleDownloadModel function, just after the download is complete 
+if (destPath) {
+  await loadModel(file);
+}
+```
+To test the model loading let's add a `console.log` inside the `loadModel` function to print the context, so we can see if the model is loaded correctly. We keep the UI the same as before, because clicking on the download button will trigger the `handleDownloadModel` function, and the `loadModel` function will be called inside it. To see the `console.log` output we need to open the Developer Tools, for that we press `j` in the terminal where we ran `npm start`. If everything is working correctly we should see the context printed in the console.
+![alt text](assets/llama_context.png)
+
+> **Note:** For the whole code until now you can check the `third_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/third_checkpoint/EdgeLLMBasic/App.tsx)
 
 ### **Chat Implementation**
 
@@ -488,6 +555,7 @@ const handleSendMessage = async () => {
   setUserInput('');
 
   try {
+    // we define list the stop words for all the model formats
     const stopWords = [
       '</s>',
       '<|end|>',
@@ -498,6 +566,7 @@ const handleSendMessage = async () => {
       '<|end▁of▁sentence|>',
       '<｜end▁of▁sentence｜>',
     ];
+    // now that we have the new conversation with the user message, we can send it to the model
     const result = await context.completion({
       messages: newConversation,
       n_predict: 10000,
@@ -519,9 +588,47 @@ const handleSendMessage = async () => {
       'Error During Inference',
       error instanceof Error ? error.message : 'An unknown error occurred.',
     );
+  } finally {
+    setIsGenerating(false);
   }
 };
 ```
+To test the `handleSendMessage` function we need to add an input text field and a button to the UI to trigger the function, and we will display the conversation in the `ScrollView` component.
+
+```typescript
+<View
+  style={{
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 10,
+    marginHorizontal: 10,
+  }}
+>
+  <TextInput
+    style={{flex: 1, borderWidth: 1}}
+    value={userInput}
+    onChangeText={setUserInput}
+    placeholder="Type your message here..."
+  />
+  <TouchableOpacity
+    onPress={handleSendMessage}
+    style={{backgroundColor: "#007AFF"}}
+  >
+    <Text style={{ color: "white" }}>Send</Text>
+  </TouchableOpacity>
+</View>
+<ScrollView>
+  {conversation.map((msg, index) => (
+    <Text style={{marginVertical: 10}} key={index}>{msg.content}</Text>
+  ))}
+</ScrollView>
+```
+If everything is implemented correctly, we should be able to send messages to the model and see the conversation in the `ScrollView` component, it's not beautiful of course but it's a good start, we will improve the UI later.
+The result should look like this:
+
+![alt text](assets/chat.png)
+
+> **Note:** For the whole code until now you can check the `fourth_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/fourth_checkpoint/EdgeLLMBasic/App.tsx)
 
 ### **The UI && Logic**
 
@@ -532,9 +639,9 @@ const [currentPage, setCurrentPage] = useState<
   'modelSelection' | 'conversation'
 >('modelSelection'); // Navigation state
 ```
-For the css we will use the same styles as in the [EdgeLLMBasic](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx) repo, you can copy the styles from there.
+For the css we will use the same styles as in the [EdgeLLMBasic](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx#L370) repo, you can copy the styles from there.
 
-We will start by working on the model selection screen in the App.tsx file, we will add a list of model formats (you need to do the necessary imports):
+We will start by working on the model selection screen in the App.tsx file, we will add a list of model formats (you need to do the necessary imports and delete the previous code in the `SafeAreaView` component we used for testing):
 
 ```typescript
 <SafeAreaView style={styles.container}>
@@ -561,7 +668,7 @@ We will start by working on the model selection screen in the App.tsx file, we w
 </SafeAreaView>
 ```
 
-We use `SafeAreaView` to ensure that the app is displayed correctly on devices with different screen sizes and orientations, and we use `ScrollView` to allow the user to scroll through the model formats. We also use `modelFormats.map` to map over the `modelFormats` array and display each model format as a button with a style that changes when the model format is selected. We also use the `currentPage` state to display the model selection screen only when the `currentPage` state is set to `modelSelection`, this is done by using the `&&` operator.
+We use `SafeAreaView` to ensure that the app is displayed correctly on devices with different screen sizes and orientations as we did in the previous section, and we use `ScrollView` to allow the user to scroll through the model formats. We also use `modelFormats.map` to map over the `modelFormats` array and display each model format as a button with a style that changes when the model format is selected. We also use the `currentPage` state to display the model selection screen only when the `currentPage` state is set to `modelSelection`, this is done by using the `&&` operator. The `TouchableOpacity` component is used to allow the user to select a model format by pressing on it.
 
 Now let's define `handleFormatSelection` in the App.tsx file:
 
@@ -569,13 +676,14 @@ Now let's define `handleFormatSelection` in the App.tsx file:
 const handleFormatSelection = (format: string) => {
   setSelectedModelFormat(format);
   setAvailableGGUFs([]); // Clear any previous list
-  fetchAvailableGGUFs(format); /
+  fetchAvailableGGUFs(format);
 };
 ```
 
 We store the selected model format in the state and clear the previous list of GGUF files from other selections, and then we fetch the new list of GGUF files for the selected format.
 The screen should look like this on your device:
-![alt text](assets/blog_images/model_selection_start.png)
+
+![alt text](assets/model_selection_start.png)
 
 Next, let's add the view to show the list of GGUF files already available for the selected model format, we will add it below the model format selection section.
 
@@ -596,10 +704,13 @@ Next, let's add the view to show the list of GGUF files already available for th
         </TouchableOpacity>
       ))}
     </View>
-  );
+  )
 }
 ```
-We need to only show the list of GGUF files if the `selectedModelFormat` state is not null, which means a model format is selected by the user.
+We need to only show the list of GGUF files if the `selectedModelFormat` state is not null, which means a model format is selected by the user. The app should look like this for now : 
+
+![alt text](assets/available_ggufs.png)
+
 We need to define `handleGGUFSelection` in the App.tsx file as a function that will trigger an alert to confirm the download of the selected GGUF file. If the user clicks on `Yes`, the download will start, else the selected GGUF file will be cleared.
 
 ```typescript
@@ -627,10 +738,23 @@ const handleDownloadAndNavigate = async (file: string) => {
 
 `handleDownloadAndNavigate` is a simple function that will download the selected GGUF file by calling `handleDownloadModel` (implemented in the previous sections) and navigate to the conversation screen after the download is complete.
 
-We can add a simple `ActivityIndicator` to the view to display a loading state when the available GGUF files are being fetched. For that we will need to import `ActivityIndicator` from `react-native` and define `isFetchingGGUF` as a boolean state variable that will be set to true in the start of the `fetchAvailableGGUFs` function and false when the function is finished as you can see here in the [code](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx#L199)
+Now after clicking on a GGUF file, we should have an alert to confirm or cancel the download, the app should look like this:
+
+![alt text](assets/confirm_download.png)
+
+We can add a simple `ActivityIndicator` to the view to display a loading state when the available GGUF files are being fetched. For that we will need to import `ActivityIndicator` from `react-native` and define `isFetching` as a boolean state variable that will be set to true in the start of the `fetchAvailableGGUFs` function and false when the function is finished as you can see here in the [code](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx#L199), and add the `ActivityIndicator` to the view just before the `{availableGGUFs.map((file, index) => (...))} ` to display a loading state when the available GGUF files are being fetched.
+
+```typescript
+{isFetching && (
+  <ActivityIndicator size="small" color="#2563EB" />
+)}
+```
+The app should look like this for a brief moment when the GGUF files are being fetched:
+
+![alt text](assets/download_indicator.png)
 
 Now we should be able to see the different GGUF files available for each model format when we click on it, and we should see the alert when clicking on a GGUF confirming if we want to download the model.
-Next we need to add the progress bar to the model selection screen, we can do it by importing the `ProgressBar` component from `src/components/ProgressBar.tsx` in the `App.tsx` file and using the `isDownloading` state variable to display it only when the `isDownloading` state is true:
+Next we need to add the progress bar to the model selection screen, we can do it by importing the `ProgressBar` component from `src/components/ProgressBar.tsx` in the `App.tsx` file as we did before, and we will add it to the view just after the `{availableGGUFs.map((file, index) => (...))} ` to display the progress bar when the model is being downloaded.
 
 ```typescript
 {
@@ -647,10 +771,16 @@ The download progress bar will now be positioned at the bottom of the model sele
 
 ```typescript
 {currentPage === 'modelSelection' && !isDownloading && (
-            <View style={styles.card}>
-              <Text style={styles.subtitle}>Choose a model format</Text>
+  <View style={styles.card}>
+  <Text style={styles.subtitle}>Choose a model format</Text>
 ...
 ```
+After confirming a model download we should have a screen like this :
+
+![alt text](assets/download_progress_bar.png)
+
+> **Note:** For the whole code until now you can check the `fifth_checkpoint` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/fifth_checkpoint/EdgeLLMBasic/App.tsx)
+
 Now that we have the model selection screen, we can start working on the conversation screen with the chat interface. This screen will be displayed when `currentPage` is set to `conversation`. We will add a conversation history and a user input field to the screen. The conversation history will be displayed in a scrollable view, and the user input field will be displayed at the bottom of the screen out of the scrollable view to stay visible. Each message will be displayed in a different color depending on the role of the message (user or assistant).
 
 We need to add just under the model selection screen the view for the conversation screen: 
@@ -685,6 +815,7 @@ We need to add just under the model selection screen the view for the conversati
 We use different styles for the user messages and the model messages, and we use the `conversation.slice(1)` to remove the first message from the conversation, which is the system message.
 
 We can now add the user input field at the bottom of the screen and the send button (they should not be inside the `ScrollView`). As I mentioned before, we will use the `handleSendMessage` function to send the user message to the model and update the conversation state with the model response.
+
 ```typescript
 {currentPage === 'conversation' && (
   <View style={styles.inputContainer}>
@@ -709,6 +840,12 @@ We can now add the user input field at the bottom of the screen and the send but
 )}
 ```
 When the user clicks on the send button, the `handleSendMessage` function will be called and the `isGenerating` state will be set to true. The send button will then be disabled and the text will change to 'Generating...'. When the model finishes generating the response, the `isGenerating` state will be set to false and the text will change back to 'Send'.
+
+> **Note:** For the whole code until now you can check the `main` branch in the `EdgeLLMBasic` folder [here](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx)
+
+The conversation page should now look like this:
+
+![alt text](assets/whole_basic_app.png)
 
 Congratulations you've just built the core functionality of your first AI chatbot, the code is available [here](https://github.com/MekkCyber/EdgeLLM/blob/main/EdgeLLMBasic/App.tsx) ! You can now start adding more features to the app to make it more user friendly and efficient.
 
