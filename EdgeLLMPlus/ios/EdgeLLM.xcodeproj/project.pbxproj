@@ -259,6 +259,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development: mohamed.mekkouri@icloud.com (FMBL6X48V3)";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 29YFZ24HHJ;
 				ENABLE_BITCODE = NO;
