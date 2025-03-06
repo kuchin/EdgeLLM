@@ -13,9 +13,9 @@ This repository contains simple React Native applications that demonstrate how t
 ## Demo of EdgeLLMPlus
 For a visual demonstration of the app, you can watch the video below:
 
-<video width="800" controls style="display: block; margin: 0 auto;">
+<!-- <video width="800" controls style="display: block; margin: 0 auto;">
   <source src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/llm-inferencen-on-edge/EdgeLLM_demo.mp4" type="video/mp4">
   Your browser does not support the video tag.
-</video>
+</video> -->
 
 
