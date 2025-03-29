@@ -306,6 +306,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error during quantization: {str(e)}")
     finally:
-        # Cleanup downloads
         if 'model_path' in locals():
             shutil.rmtree(Path(model_path).parent, ignore_errors=True)
