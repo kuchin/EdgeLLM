@@ -291,15 +291,6 @@ if __name__ == "__main__":
         for quant_type, path in quantized_models:
             print(f"- {quant_type}: {path}")
 
-        # quantized_models = [("Q2_K", "./quantized_models/Minitron-4B-Base-Q2_K.gguf"), ("Q3_K_S", "./quantized_models/Minitron-4B-Base-Q3_K_S.gguf"), ("Q3_K_M", "./quantized_models/Minitron-4B-Base-Q3_K_M.gguf"), ("Q3_K_L", "./quantized_models/Minitron-4B-Base-Q3_K_L.gguf"), ("Q4_0", "./quantized_models/Minitron-4B-Base-Q4_0.gguf"), ("Q4_K_S", "./quantized_models/Minitron-4B-Base-Q4_K_S.gguf"), ("Q4_K_M", "./quantized_models/Minitron-4B-Base-Q4_K_M.gguf"), ("Q5_0", "./quantized_models/Minitron-4B-Base-Q5_0.gguf"), ("Q5_K_S", "./quantized_models/Minitron-4B-Base-Q5_K_S.gguf"), ("Q5_K_M", "./quantized_models/Minitron-4B-Base-Q5_K_M.gguf"), ("Q6_K", "./quantized_models/Minitron-4B-Base-Q6_K.gguf"), ("Q8_0", "./quantized_models/Minitron-4B-Base-Q8_0.gguf")]
-        # quantized_models.append(("IQ3_M", "./quantized_models/Minitron-4B-Base-IQ3_M_imat.gguf"))
-        # quantized_models.append(("IQ3_XXS", "./quantized_models/Minitron-4B-Base-IQ3_XXS_imat.gguf"))
-        # quantized_models.append(("IQ4_NL", "./quantized_models/Minitron-4B-Base-IQ4_NL_imat.gguf"))
-        # quantized_models.append(("Q4_K_M", "./quantized_models/Minitron-4B-Base-Q4_K_M_imat.gguf"))
-        # quantized_models.append(("Q4_K_S", "./quantized_models/Minitron-4B-Base-Q4_K_S_imat.gguf"))
-        # quantized_models.append(("IQ4_XS", "./quantized_models/Minitron-4B-Base-IQ4_XS_imat.gguf"))
-        # quantized_models.append(("Q5_K_M", "./quantized_models/Minitron-4B-Base-Q5_K_M_imat.gguf"))
-        # quantized_models.append(("Q5_K_S", "./quantized_models/Minitron-4B-Base-Q5_K_S_imat.gguf"))
         
         
         upload_models(quantized_models, TARGET_REPO, MODEL_ID, HF_TOKEN)
