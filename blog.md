@@ -1,9 +1,4 @@
----
-title: "LLM Inference on Edge: A Fun and Easy Guide to run LLMs via React Native on an iPhone!"
-thumbnail: /blog/assets/deepseek-r1-aws/thumbnail.png
-authors:
-  - user: medmekk
----
+# title: "LLM Inference on Edge: A Fun and Easy Guide to run LLMs via React Native on an iPhone!"
 
 As LLMs continue to evolve, they are becoming smaller and smarter, enabling them to run directly on your phone. Take, for instance, the DeepSeek R1 Distil Qwen 2.5 with 1.5 billion parameters, this model showcases how advanced AI can now fit into the palm of your hand. In this blog, we will guide you through creating a mobile app that allows you to chat with these powerful models locally. If you've ever felt overwhelmed by the complexity of open-source projects, fear not! Inspired by the innovative [Pocket Pal](https://github.com/a-ghorbani/pocketpal-ai) app, we will help you build a straightforward React Native application that downloads LLMs from the [**Hugging Face**](https://huggingface.co/) hub, ensuring everything remains private and runs on your device. We will utilize `llama.rn`, a binding for `llama.cpp`, to load GGUF files efficiently!
 
