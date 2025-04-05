@@ -291,8 +291,6 @@ if __name__ == "__main__":
         for quant_type, path in quantized_models:
             print(f"- {quant_type}: {path}")
 
-        
-        
         upload_models(quantized_models, TARGET_REPO, MODEL_ID, HF_TOKEN)
     except Exception as e:
         print(f"Error during quantization: {str(e)}")
