@@ -523,7 +523,7 @@ Now we need to test the `handleDownloadModel` function, let's add a button to th
 </details>
 <br>
 
-In the UI we show a list of the supported model formats and a button to download the model, when the user chooses the model format and clicks on the button the progress bar should be displayed and the download should start. In the test we hardcoded the model to download `Llama-3.2-1B-Instruct-Q2_K.gguf`, so we need to select `Llama-3.2-1B-Instruct` as a model format for the function to work, we should have something like:
+In the UI we show a list of supported model formats and a button to download the model, when the user chooses the model format and clicks on the button the progress bar should be displayed and the download should start. In the test we hardcoded the model to download `Llama-3.2-1B-Instruct-Q2_K.gguf`, so we need to select `Llama-3.2-1B-Instruct` as a model format for the function to work, we should have something like this:
 
 <div align="center">
   <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/llm-inferencen-on-edge/download_image.png" alt="Download Model" width="300" />
