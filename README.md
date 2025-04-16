@@ -9,5 +9,4 @@ This repository contains simple React Native applications that demonstrate how t
 3. Run `npm install` 
 4. For Ios simulators, in the ios folder, run `pod install`
 5. In the app folder, run `npm start` then on an other terminal, run `npm run ios` or `npm run android` (the emulator/simulator need to be setup before launching the app)
-6. 
    
