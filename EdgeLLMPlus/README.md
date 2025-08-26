@@ -95,3 +95,20 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+
+---
+
+Model: SmolVLM2-2.2B-Instruct --> Q5_K_M
+
+Images:
+
+https://support.proof.com/hc/article_attachments/22907978517527
+
+https://raw.githubusercontent.com/test-images/png/refs/heads/main/202105/cs-black-000.png
+
+https://examplefiles.org/files/images/jpg-example-file-download-500x500.jpg
+
+https://people.math.sc.edu/Burkardt/data/bmp/dots.bmp
+
+https://miro.medium.com/v2/resize:fit:1024/format:webp/1*XRn1NkCYkLmOfqfdg9wGew.png

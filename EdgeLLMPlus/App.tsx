@@ -20,6 +20,9 @@ import { downloadModel } from "./src/api/model"; // Download function
 import ProgressBar from "./src/components/ProgressBar"; // Progress bar component
 import RNFS from "react-native-fs"; // File system module
 import axios from "axios";
+import { Buffer } from "buffer";
+import * as JPEG from "jpeg-js";
+import UPNG from "upng-js";
 
 type Message = {
   role: "user" | "assistant" | "system";
@@ -54,21 +57,23 @@ function App(): React.JSX.Element {
   const [isFetching, setIsFetching] = useState<boolean>(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
+  const [imageUrl, setImageUrl] = useState<string>("");
 
   const modelFormats = [
+    { label: "SmolVLM2-2.2B-Instruct" },
     { label: "Llama-3.2-1B-Instruct" },
-    { label: "Qwen2-0.5B-Instruct" },
-    { label: "DeepSeek-R1-Distill-Qwen-1.5B" },
-    { label: "SmolLM2-1.7B-Instruct" },
+    // { label: "Qwen2-0.5B-Instruct" },
+    // { label: "DeepSeek-R1-Distill-Qwen-1.5B" },
+    // { label: "SmolLM2-1.7B-Instruct" },
   ];
 
   const HF_TO_GGUF = {
-    // 'Llama-3.2-1B-Instruct': 'bartowski/Llama-3.2-1B-Instruct-GGUF',
+    "SmolVLM2-2.2B-Instruct": "second-state/SmolVLM2-2.2B-Instruct-GGUF",
     "Llama-3.2-1B-Instruct": "medmekk/Llama-3.2-1B-Instruct.GGUF",
-    "DeepSeek-R1-Distill-Qwen-1.5B":
-      "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
-    "Qwen2-0.5B-Instruct": "medmekk/Qwen2.5-0.5B-Instruct.GGUF",
-    "SmolLM2-1.7B-Instruct": "medmekk/SmolLM2-1.7B-Instruct.GGUF",
+    // "DeepSeek-R1-Distill-Qwen-1.5B":
+    //   "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
+    // "Qwen2-0.5B-Instruct": "medmekk/Qwen2.5-0.5B-Instruct.GGUF",
+    // "SmolLM2-1.7B-Instruct": "medmekk/SmolLM2-1.7B-Instruct.GGUF",
   };
 
   // To handle the scroll view
@@ -223,6 +228,362 @@ function App(): React.JSX.Element {
     }
   };
 
+  const inferMimeFromPath = (path: string) => {
+    const clean = path.split("?")[0].split("#")[0];
+    const extMatch = clean.match(/\.([a-zA-Z0-9]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : "";
+    switch (ext) {
+      case "png":
+        return "image/png";
+      case "jpg":
+      case "jpeg":
+        return "image/jpeg";
+      case "webp":
+        return "image/webp";
+      case "gif":
+        return "image/gif";
+      default:
+        return "image/jpeg";
+    }
+  };
+
+  const toMediaPath = async (uri: string): Promise<string | null> => {
+    try {
+      if (!uri) return null;
+
+      if (uri.startsWith("file://") || uri.startsWith("/")) {
+        const filePath = uri.replace(/^file:\/\//, "");
+        return `file://${filePath}`;
+      }
+
+      if (uri.startsWith("http://") || uri.startsWith("https://")) {
+        const clean = uri.split("?")[0].split("#")[0];
+        const extMatch = clean.match(/\.([a-zA-Z0-9]+)$/);
+        const ext = extMatch ? extMatch[1] : "jpg";
+        const dest = `${RNFS.CachesDirectoryPath}/llm_img_${Date.now()}.${ext}`;
+        const res = RNFS.downloadFile({ fromUrl: uri, toFile: dest });
+        await res.promise;
+        return `file://${dest}`;
+      }
+
+      return null;
+    } catch (e) {
+      console.error("Failed to resolve image to file path:", e);
+      return null;
+    }
+  };
+
+  const detectMimeFromBytes = (bytes: Uint8Array): string => {
+    const header = Array.from(bytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    console.log("detectMimeFromBytes - header bytes:", header);
+    
+    if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4d) {
+      console.log("detectMimeFromBytes - detected BMP");
+      return "image/bmp";
+    }
+    if (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    ) {
+      console.log("detectMimeFromBytes - detected PNG");
+      return "image/png";
+    }
+    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      console.log("detectMimeFromBytes - detected JPEG");
+      return "image/jpeg";
+    }
+    if (
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && // "RIFF"
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50 // "WEBP"
+    ) {
+      console.log("detectMimeFromBytes - detected WebP");
+      return "image/webp";
+    }
+    console.log("detectMimeFromBytes - unknown format");
+    return "application/octet-stream";
+  };
+
+  const resizeNearestRGBA = (
+    src: Uint8Array,
+    srcW: number,
+    srcH: number,
+    dstW: number,
+    dstH: number
+  ): Uint8Array => {
+    const dst = new Uint8Array(dstW * dstH * 4);
+    for (let y = 0; y < dstH; y++) {
+      const sy = Math.floor((y * srcH) / dstH);
+      for (let x = 0; x < dstW; x++) {
+        const sx = Math.floor((x * srcW) / dstW);
+        const si = (sy * srcW + sx) * 4;
+        const di = (y * dstW + x) * 4;
+        dst[di] = src[si];
+        dst[di + 1] = src[si + 1];
+        dst[di + 2] = src[si + 2];
+        dst[di + 3] = src[si + 3];
+      }
+    }
+    return dst;
+  };
+
+  const writeBmp24 = (rgba: Uint8Array, width: number, height: number): Uint8Array => {
+    console.log("writeBmp24 - input:", width, "x", height, "RGBA length:", rgba.length);
+    
+    const rowStride = width * 3;
+    const rowPad = (4 - (rowStride % 4)) % 4;
+    const imageSize = (rowStride + rowPad) * height;
+    const fileSize = 14 + 40 + imageSize;
+    
+    console.log("writeBmp24 - rowStride:", rowStride, "rowPad:", rowPad, "imageSize:", imageSize, "fileSize:", fileSize);
+    
+    const out = new Uint8Array(fileSize);
+    const dv = new DataView(out.buffer);
+    
+    // BITMAPFILEHEADER
+    out[0] = 0x42; // 'B'
+    out[1] = 0x4d; // 'M'
+    dv.setUint32(2, fileSize, true);
+    dv.setUint32(6, 0, true);
+    dv.setUint32(10, 54, true); // pixel data offset
+    
+    // BITMAPINFOHEADER
+    dv.setUint32(14, 40, true); // header size
+    dv.setInt32(18, width, true);
+    dv.setInt32(22, height, true);
+    dv.setUint16(26, 1, true); // planes
+    dv.setUint16(28, 24, true); // bpp
+    dv.setUint32(30, 0, true); // compression BI_RGB
+    dv.setUint32(34, imageSize, true);
+    dv.setInt32(38, 2835, true); // x ppm (~72dpi)
+    dv.setInt32(42, 2835, true); // y ppm
+    dv.setUint32(46, 0, true); // colors used
+    dv.setUint32(50, 0, true); // important colors
+    
+    console.log("writeBmp24 - BMP headers written, starting pixel data at offset 54");
+    
+    // Pixel data (bottom-up, BGR, padded rows)
+    let offset = 54;
+    for (let y = height - 1; y >= 0; y--) {
+      for (let x = 0; x < width; x++) {
+        const si = (y * width + x) * 4;
+        if (si + 3 >= rgba.length) {
+          console.warn("writeBmp24 - pixel index out of bounds:", si, "rgba.length:", rgba.length);
+          out[offset++] = 0; // B
+          out[offset++] = 0; // G
+          out[offset++] = 0; // R
+        } else {
+          out[offset++] = rgba[si + 2]; // B
+          out[offset++] = rgba[si + 1]; // G
+          out[offset++] = rgba[si]; // R
+        }
+      }
+      for (let p = 0; p < rowPad; p++) out[offset++] = 0;
+    }
+    
+    console.log("writeBmp24 - pixel data written, final offset:", offset, "expected:", fileSize);
+    
+    return out;
+  };
+
+  const ensureBmpForMedia = async (
+    uri: string,
+    options: { maxSize?: number } = {}
+  ): Promise<string | null> => {
+    try {
+      const local = await toMediaPath(uri);
+      if (!local) return null;
+      const nativePath = local.replace(/^file:\/\//, "");
+      console.log("ensureBmpForMedia - input file:", nativePath);
+      
+      const base64 = await RNFS.readFile(nativePath, "base64");
+      const buf = Buffer.from(base64, "base64");
+      const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+      console.log("ensureBmpForMedia - input file size:", bytes.length, "bytes");
+      
+      const mime = detectMimeFromBytes(bytes);
+      console.log("ensureBmpForMedia - detected mime:", mime);
+      
+      if (mime === "image/bmp") {
+        console.log("ensureBmpForMedia - already BMP, returning original");
+        return local;
+      }
+
+      let width = 0;
+      let height = 0;
+      let rgba: Uint8Array | null = null;
+
+      // Handle WebP by trying to get a different format
+      if (mime === "image/webp") {
+        console.log("ensureBmpForMedia - WebP detected, trying to get alternative format...");
+        try {
+          // Try to modify URL to get PNG/JPEG instead of WebP
+          let altUri = uri;
+          if (uri.includes("format:webp") || uri.includes("format=webp")) {
+            altUri = uri.replace(/format[:=]webp/g, "format:jpeg");
+            console.log("ensureBmpForMedia - trying alternative URL:", altUri);
+            
+            const altLocal = await toMediaPath(altUri);
+            if (altLocal) {
+              const altNativePath = altLocal.replace(/^file:\/\//, "");
+              const altBase64 = await RNFS.readFile(altNativePath, "base64");
+              const altBuf = Buffer.from(altBase64, "base64");
+              const altBytes = new Uint8Array(altBuf.buffer, altBuf.byteOffset, altBuf.byteLength);
+              const altMime = detectMimeFromBytes(altBytes);
+              
+              if (altMime === "image/jpeg" || altMime === "image/png") {
+                console.log("ensureBmpForMedia - successfully got alternative format:", altMime);
+                // Recursively call with the new format
+                return await ensureBmpForMedia(altUri, options);
+              }
+            }
+          }
+          
+          console.log("ensureBmpForMedia - WebP alternative failed, falling back to 1x1");
+          width = 1; height = 1; rgba = new Uint8Array([255,255,255,255]);
+        } catch (webpErr) {
+          console.warn("ensureBmpForMedia - WebP handling error:", webpErr);
+          width = 1; height = 1; rgba = new Uint8Array([255,255,255,255]);
+        }
+      } else if (mime === "image/png") {
+        console.log("ensureBmpForMedia - decoding PNG...");
+        const pngBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        console.log("ensureBmpForMedia - PNG buffer size:", pngBuffer.byteLength);
+        
+        const decoded = UPNG.decode(pngBuffer);
+        width = decoded.width as number;
+        height = decoded.height as number;
+        console.log("ensureBmpForMedia - PNG dimensions:", width, "x", height);
+        
+        const frames = UPNG.toRGBA8(decoded) as Uint8Array[] | ArrayBuffer[];
+        console.log("ensureBmpForMedia - PNG frames count:", frames?.length || 0);
+        
+        const frame0 = frames && frames.length > 0 ? frames[0] : null;
+        if (frame0 instanceof ArrayBuffer) {
+          rgba = new Uint8Array(frame0);
+        } else if (frame0) {
+          rgba = frame0 as Uint8Array;
+        }
+        console.log("ensureBmpForMedia - PNG RGBA data length:", rgba?.length || 0, "expected:", width * height * 4);
+        
+        // Alpha composite PNG against white background for 24-bit BMP
+        if (rgba && rgba.length === width * height * 4) {
+          console.log("ensureBmpForMedia - applying alpha compositing...");
+          const composited = new Uint8Array(width * height * 4);
+          let transparentPixels = 0;
+          for (let i = 0; i < rgba.length; i += 4) {
+            const alpha = rgba[i + 3] / 255;
+            if (alpha < 1) transparentPixels++;
+            composited[i] = Math.round(rgba[i] * alpha + 255 * (1 - alpha)); // R
+            composited[i + 1] = Math.round(rgba[i + 1] * alpha + 255 * (1 - alpha)); // G
+            composited[i + 2] = Math.round(rgba[i + 2] * alpha + 255 * (1 - alpha)); // B
+            composited[i + 3] = 255; // A (opaque)
+          }
+          console.log("ensureBmpForMedia - alpha composited", transparentPixels, "transparent pixels");
+          rgba = composited;
+        }
+      } else if (mime === "image/jpeg") {
+        console.log("ensureBmpForMedia - decoding JPEG...");
+        const decoded = JPEG.decode(bytes, { useTArray: true });
+        width = decoded.width;
+        height = decoded.height;
+        rgba = decoded.data as unknown as Uint8Array;
+        console.log("ensureBmpForMedia - JPEG dimensions:", width, "x", height, "data length:", rgba.length);
+      } else {
+        console.log("ensureBmpForMedia - unknown format, attempting PNG fallback...");
+        // Unknown type, attempt PNG first
+        try {
+          const pngBuffer2 = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+          const d2 = UPNG.decode(pngBuffer2);
+          width = d2.width as number;
+          height = d2.height as number;
+          console.log("ensureBmpForMedia - fallback PNG dimensions:", width, "x", height);
+          
+          const frames2 = UPNG.toRGBA8(d2) as Uint8Array[] | ArrayBuffer[];
+          const f0 = frames2 && frames2.length > 0 ? frames2[0] : null;
+          if (f0 instanceof ArrayBuffer) {
+            rgba = new Uint8Array(f0);
+          } else if (f0) {
+            rgba = f0 as Uint8Array;
+          }
+          console.log("ensureBmpForMedia - fallback PNG RGBA length:", rgba?.length || 0);
+          
+          // Alpha composite PNG against white background
+          if (rgba && rgba.length === width * height * 4) {
+            console.log("ensureBmpForMedia - applying alpha compositing to fallback PNG...");
+            const composited = new Uint8Array(width * height * 4);
+            for (let i = 0; i < rgba.length; i += 4) {
+              const alpha = rgba[i + 3] / 255;
+              composited[i] = Math.round(rgba[i] * alpha + 255 * (1 - alpha)); // R
+              composited[i + 1] = Math.round(rgba[i + 1] * alpha + 255 * (1 - alpha)); // G
+              composited[i + 2] = Math.round(rgba[i + 2] * alpha + 255 * (1 - alpha)); // B
+              composited[i + 3] = 255; // A (opaque)
+            }
+            rgba = composited;
+          }
+        } catch (e) {
+          console.log("ensureBmpForMedia - PNG fallback failed, trying JPEG fallback...", e);
+          try {
+            const decoded = JPEG.decode(bytes, { useTArray: true });
+            width = decoded.width;
+            height = decoded.height;
+            rgba = decoded.data as unknown as Uint8Array;
+            console.log("ensureBmpForMedia - fallback JPEG dimensions:", width, "x", height, "data length:", rgba.length);
+          } catch (e2) {
+            console.warn("ensureBmpForMedia - all decoders failed, using 1x1 fallback:", e2);
+            // Fallback to 1x1 white BMP to guarantee .bmp path
+            width = 1; height = 1; rgba = new Uint8Array([255,255,255,255]);
+          }
+        }
+      }
+
+      if (!rgba) {
+        console.log("ensureBmpForMedia - no RGBA data, using 1x1 white fallback");
+        // Fallback to 1x1 white BMP
+        width = 1; height = 1; rgba = new Uint8Array([255,255,255,255]);
+      }
+      
+      console.log("ensureBmpForMedia - final RGBA dimensions before resize:", width, "x", height, "data length:", rgba.length);
+      
+      // Optional resize if too large
+      const maxSize = options.maxSize ?? 1024;
+      if (width > maxSize || height > maxSize) {
+        const scale = Math.min(maxSize / width, maxSize / height);
+        const nw = Math.max(1, Math.floor(width * scale));
+        const nh = Math.max(1, Math.floor(height * scale));
+        console.log("ensureBmpForMedia - resizing from", width, "x", height, "to", nw, "x", nh, "scale:", scale);
+        rgba = resizeNearestRGBA(rgba, width, height, nw, nh);
+        width = nw;
+        height = nh;
+        console.log("ensureBmpForMedia - resized RGBA data length:", rgba.length);
+      } else {
+        console.log("ensureBmpForMedia - no resize needed, within", maxSize, "px limit");
+      }
+
+      console.log("ensureBmpForMedia - writing BMP with dimensions:", width, "x", height);
+      const bmpBytes = writeBmp24(rgba, width, height);
+      console.log("ensureBmpForMedia - BMP file size:", bmpBytes.length, "bytes");
+      
+      const bmpBase64 = Buffer.from(bmpBytes).toString("base64");
+      const outPath = `${RNFS.CachesDirectoryPath}/llm_img_${Date.now()}.bmp`;
+      console.log("ensureBmpForMedia - writing to:", outPath);
+      
+      await RNFS.writeFile(outPath, bmpBase64, "base64");
+      console.log("ensureBmpForMedia - BMP file written successfully");
+      
+      // Verify the written file
+      const stat = await RNFS.stat(outPath);
+      console.log("ensureBmpForMedia - written file size:", stat.size, "bytes");
+      
+      return `file://${outPath}`;
+    } catch (e) {
+      console.error("ensureBmpForMedia - fatal error:", e);
+      console.error("ensureBmpForMedia - error stack:", e instanceof Error ? e.stack : "no stack");
+      return null;
+    }
+  };
+
   const stopGeneration = async () => {
     try {
       await context.stopCompletion();
@@ -263,6 +624,60 @@ function App(): React.JSX.Element {
         n_gpu_layers: 1,
       });
       setContext(llamaContext);
+      try {
+        const files = await RNFS.readDir(RNFS.DocumentDirectoryPath);
+        const mmprojFile = files.find(
+          (f) => f.name.toLowerCase().includes("mmproj") && f.name.endsWith(".gguf")
+        );
+        if (mmprojFile) {
+          const mmprojPath = `${RNFS.DocumentDirectoryPath}/${mmprojFile.name}`;
+          console.log("Found mmproj:", mmprojPath);
+          console.log("Initializing multimodal (GPU=true)...");
+          const initOk = await llamaContext.initMultimodal({ path: mmprojPath, use_gpu: true });
+          console.log("initMultimodal success:", initOk);
+          const enabled = await llamaContext.isMultimodalEnabled();
+          console.log("isMultimodalEnabled:", enabled);
+          const support = await llamaContext.getMultimodalSupport();
+          console.log("getMultimodalSupport:", support);
+        } else {
+          console.log("No mmproj .gguf found in app documents. Attempting to fetch from Hugging Face...");
+          try {
+            const repo = HF_TO_GGUF[selectedModelFormat as keyof typeof HF_TO_GGUF];
+            if (repo) {
+              const resp = await axios.get(`https://huggingface.co/api/models/${repo}`);
+              const siblings = resp.data?.siblings || [];
+              const mmprojRemote = siblings.find((f: any) =>
+                typeof f.rfilename === "string" &&
+                f.rfilename.toLowerCase().includes("mmproj") &&
+                f.rfilename.endsWith(".gguf")
+              );
+              if (mmprojRemote) {
+                const mmprojName = mmprojRemote.rfilename.split("/").pop();
+                const mmprojDest = `${RNFS.DocumentDirectoryPath}/${mmprojName}`;
+                const exists = await RNFS.exists(mmprojDest);
+                if (!exists) {
+                  const url = `https://huggingface.co/${repo}/resolve/main/${mmprojRemote.rfilename}`;
+                  console.log("Downloading mmproj from:", url);
+                  await RNFS.downloadFile({ fromUrl: url, toFile: mmprojDest }).promise;
+                }
+                console.log("Initializing multimodal with downloaded mmproj:", mmprojDest);
+                const initOk = await llamaContext.initMultimodal({ path: mmprojDest, use_gpu: true });
+                console.log("initMultimodal success:", initOk);
+                const enabled = await llamaContext.isMultimodalEnabled();
+                console.log("isMultimodalEnabled:", enabled);
+                const support = await llamaContext.getMultimodalSupport();
+                console.log("getMultimodalSupport:", support);
+              } else {
+                console.log("No mmproj .gguf found in repo either. Ensure your model provides a projector.");
+              }
+            }
+          } catch (netErr) {
+            console.warn("Failed to fetch/init mmproj from repo:", netErr);
+          }
+        }
+      } catch (mmerr) {
+        console.warn("Multimodal init error:", mmerr);
+      }
       Alert.alert("Model Loaded", "The model was successfully loaded.");
       return true;
     } catch (error) {
@@ -279,14 +694,20 @@ function App(): React.JSX.Element {
       Alert.alert("Model Not Loaded", "Please load the model first.");
       return;
     }
-    if (!userInput.trim()) {
-      Alert.alert("Input Error", "Please enter a message.");
+    if (!userInput.trim() && !imageUrl.trim()) {
+      Alert.alert("Input Error", "Please enter a message or provide an image URL.");
       return;
     }
 
+    const attachedImageUrl = imageUrl;
+    const userText = userInput; // capture before clearing
+    const displayContent = attachedImageUrl
+      ? `${userInput}\n\n![image](${attachedImageUrl})`
+      : userInput;
+
     const newConversation: Message[] = [
       ...conversation,
-      { role: "user", content: userInput },
+      { role: "user", content: displayContent },
     ];
     setConversation(newConversation);
     setUserInput("");
@@ -331,9 +752,62 @@ function App(): React.JSX.Element {
         };
       }
 
+//      const mediaPath = attachedImageUrl
+//        ? await toMediaPath(attachedImageUrl)
+      let mediaPath = attachedImageUrl
+        ? await ensureBmpForMedia(attachedImageUrl, { maxSize: 1024 })
+        : null;
+      if (attachedImageUrl) {
+        console.log("image input uri:", attachedImageUrl);
+        console.log("image mediaPath:", mediaPath);
+      }
+
+      const apiMessages = chat.map((m, idx) => {
+        const base = { role: m.role, content: m.content } as any;
+        const isLatestUser = m.role === "user" && idx === chat.length - 1;
+        if (isLatestUser && mediaPath) {
+          const nativePath = mediaPath.replace(/^file:\/\//, "");
+          return {
+            role: "user",
+            content: [
+              { type: "text", text: userText },
+              { type: "image_url", image_url: { url: nativePath } },
+            ],
+          };
+        }
+        return base;
+      });
+
+      console.log("completion.messages sample:", JSON.stringify(apiMessages.slice(-1)[0], null, 2));
+      // Log multimodal capabilities before completion
+      try {
+        if (context?.isMultimodalEnabled) {
+          const enabled = await context.isMultimodalEnabled();
+          console.log("isMultimodalEnabled before completion:", enabled);
+          if (enabled && context.getMultimodalSupport) {
+            const support = await context.getMultimodalSupport();
+            console.log("getMultimodalSupport before completion:", support);
+          }
+        }
+      } catch (e) {
+        console.log("Multimodal capability check error:", e);
+      }
+
+      // Verify media_paths is present after format
+      try {
+        const formatted = await context.getFormattedChat(apiMessages as any);
+        if (typeof formatted === "string") {
+          console.log("formatted (llama-chat) length:", formatted.length);
+        } else {
+          console.log("formatted has_media:", formatted.has_media, "media_paths:", formatted.media_paths);
+        }
+      } catch (e) {
+        console.log("getFormattedChat debug error:", e);
+      }
+
       const result: CompletionResult = await context.completion(
         {
-          messages: chat,
+          messages: apiMessages,
           n_predict: 10000,
           stop: stopWords,
         },
@@ -370,7 +844,7 @@ function App(): React.JSX.Element {
           }
 
           const visibleContent = currentAssistantMessage
-            .replace(/<think>.*?<\/think>/gs, "")
+            .replace(/<think>[\s\S]*?<\/think>/g, "")
             .trim();
 
           setConversation((prev) => {
@@ -399,6 +873,7 @@ function App(): React.JSX.Element {
     } finally {
       setIsLoading(false);
       setIsGenerating(false);
+      setImageUrl("");
     }
   };
 
@@ -521,12 +996,7 @@ function App(): React.JSX.Element {
                           : styles.llamaBubble,
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.messageText,
-                          msg.role === "user" && styles.userMessageText,
-                        ]}
-                      >
+                      <View>
                         {msg.thought && (
                           <TouchableOpacity
                             onPress={() => toggleThought(index + 1)} // +1 to account for slice(1)
@@ -550,7 +1020,7 @@ function App(): React.JSX.Element {
                           </View>
                         )}
                         <Markdown>{msg.content}</Markdown>
-                      </Text>
+                      </View>
                     </View>
                     {msg.role === "assistant" && (
                       <Text
@@ -603,6 +1073,17 @@ function App(): React.JSX.Element {
                       </Text>
                     </TouchableOpacity>
                   )}
+                </View>
+                <View style={{ marginTop: 8 }}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Image URL (optional, vision model required)"
+                    placeholderTextColor="#94A3B8"
+                    value={imageUrl}
+                    onChangeText={setImageUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
                 </View>
               </View>
               <TouchableOpacity
