@@ -24,6 +24,11 @@ import { Buffer } from "buffer";
 import * as JPEG from "jpeg-js";
 import UPNG from "upng-js";
 
+// Optional: set your Hugging Face token here (or use an env/secure store)
+const HF_TOKEN: string | undefined = undefined; // e.g., "hf_xxx". Leave undefined for public models.
+const buildHfHeaders = () =>
+  HF_TOKEN ? { Authorization: `Bearer ${HF_TOKEN}` } : undefined;
+
 type Message = {
   role: "user" | "assistant" | "system";
   content: string;
@@ -61,6 +66,7 @@ function App(): React.JSX.Element {
 
   const modelFormats = [
     { label: "SmolVLM2-2.2B-Instruct" },
+    { label: "Gemma 3 4B" },
     { label: "Llama-3.2-1B-Instruct" },
     // { label: "Qwen2-0.5B-Instruct" },
     // { label: "DeepSeek-R1-Distill-Qwen-1.5B" },
@@ -69,6 +75,8 @@ function App(): React.JSX.Element {
 
   const HF_TO_GGUF = {
     "SmolVLM2-2.2B-Instruct": "second-state/SmolVLM2-2.2B-Instruct-GGUF",
+    // "Gemma 3 4B": "unsloth/gemma-3-4b-it-GGUF",
+    "Gemma 3 4B": "google/gemma-3-4b-it-qat-q4_0-gguf",
     "Llama-3.2-1B-Instruct": "medmekk/Llama-3.2-1B-Instruct.GGUF",
     // "DeepSeek-R1-Distill-Qwen-1.5B":
     //   "medmekk/DeepSeek-R1-Distill-Qwen-1.5B.GGUF",
@@ -126,7 +134,8 @@ function App(): React.JSX.Element {
       const response = await axios.get(
         `https://huggingface.co/api/models/${
           HF_TO_GGUF[modelFormat as keyof typeof HF_TO_GGUF]
-        }`
+        }`,
+        { headers: buildHfHeaders() }
       );
       console.log(response);
       const files = response.data.siblings.filter((file: any) =>
@@ -212,8 +221,11 @@ function App(): React.JSX.Element {
       console.log("before download");
       console.log(isDownloading);
 
-      const destPath = await downloadModel(file, downloadUrl, (progress) =>
-        setProgress(progress)
+      const destPath = await downloadModel(
+        file,
+        downloadUrl,
+        (progress) => setProgress(progress),
+        buildHfHeaders()
       );
       Alert.alert("Success", `Model downloaded to: ${destPath}`);
 
@@ -389,7 +401,7 @@ function App(): React.JSX.Element {
 
   const ensureBmpForMedia = async (
     uri: string,
-    options: { maxSize?: number } = {}
+    options: { maxSize?: number; squareSize?: number } = {}
   ): Promise<string | null> => {
     try {
       const local = await toMediaPath(uri);
@@ -546,19 +558,56 @@ function App(): React.JSX.Element {
       
       console.log("ensureBmpForMedia - final RGBA dimensions before resize:", width, "x", height, "data length:", rgba.length);
       
-      // Optional resize if too large
-      const maxSize = options.maxSize ?? 1024;
-      if (width > maxSize || height > maxSize) {
-        const scale = Math.min(maxSize / width, maxSize / height);
+      // Optional normalization
+      if (options.squareSize && options.squareSize > 0) {
+        const sq = options.squareSize;
+        const scale = Math.min(sq / width, sq / height);
         const nw = Math.max(1, Math.floor(width * scale));
         const nh = Math.max(1, Math.floor(height * scale));
-        console.log("ensureBmpForMedia - resizing from", width, "x", height, "to", nw, "x", nh, "scale:", scale);
-        rgba = resizeNearestRGBA(rgba, width, height, nw, nh);
-        width = nw;
-        height = nh;
-        console.log("ensureBmpForMedia - resized RGBA data length:", rgba.length);
+        if (nw !== width || nh !== height) {
+          console.log("ensureBmpForMedia - square resize from", width, "x", height, "to", nw, "x", nh);
+          rgba = resizeNearestRGBA(rgba, width, height, nw, nh);
+          width = nw;
+          height = nh;
+        }
+        // Letterbox center to square
+        const dst = new Uint8Array(sq * sq * 4);
+        // Fill white background
+        for (let i = 0; i < dst.length; i += 4) {
+          dst[i] = 255; dst[i + 1] = 255; dst[i + 2] = 255; dst[i + 3] = 255;
+        }
+        const offX = Math.floor((sq - width) / 2);
+        const offY = Math.floor((sq - height) / 2);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const si = (y * width + x) * 4;
+            const dx = offX + x;
+            const dy = offY + y;
+            const di = (dy * sq + dx) * 4;
+            dst[di] = rgba[si];
+            dst[di + 1] = rgba[si + 1];
+            dst[di + 2] = rgba[si + 2];
+            dst[di + 3] = rgba[si + 3];
+          }
+        }
+        rgba = dst;
+        width = sq;
+        height = sq;
+        console.log("ensureBmpForMedia - letterboxed to square", sq, "x", sq);
       } else {
-        console.log("ensureBmpForMedia - no resize needed, within", maxSize, "px limit");
+        const maxSize = options.maxSize ?? 1024;
+        if (width > maxSize || height > maxSize) {
+          const scale = Math.min(maxSize / width, maxSize / height);
+          const nw = Math.max(1, Math.floor(width * scale));
+          const nh = Math.max(1, Math.floor(height * scale));
+          console.log("ensureBmpForMedia - resizing from", width, "x", height, "to", nw, "x", nh, "scale:", scale);
+          rgba = resizeNearestRGBA(rgba, width, height, nw, nh);
+          width = nw;
+          height = nh;
+          console.log("ensureBmpForMedia - resized RGBA data length:", rgba.length);
+        } else {
+          console.log("ensureBmpForMedia - no resize needed, within", maxSize, "px limit");
+        }
       }
 
       console.log("ensureBmpForMedia - writing BMP with dimensions:", width, "x", height);
@@ -625,51 +674,39 @@ function App(): React.JSX.Element {
       });
       setContext(llamaContext);
       try {
-        const files = await RNFS.readDir(RNFS.DocumentDirectoryPath);
-        const mmprojFile = files.find(
-          (f) => f.name.toLowerCase().includes("mmproj") && f.name.endsWith(".gguf")
-        );
-        if (mmprojFile) {
-          const mmprojPath = `${RNFS.DocumentDirectoryPath}/${mmprojFile.name}`;
-          console.log("Found mmproj:", mmprojPath);
-          console.log("Initializing multimodal (GPU=true)...");
-          const initOk = await llamaContext.initMultimodal({ path: mmprojPath, use_gpu: true });
-          console.log("initMultimodal success:", initOk);
-          const enabled = await llamaContext.isMultimodalEnabled();
-          console.log("isMultimodalEnabled:", enabled);
-          const support = await llamaContext.getMultimodalSupport();
-          console.log("getMultimodalSupport:", support);
+        const repo = HF_TO_GGUF[selectedModelFormat as keyof typeof HF_TO_GGUF];
+        if (!repo) {
+          console.log("No repo mapping for selected model; skipping multimodal init.");
         } else {
-          console.log("No mmproj .gguf found in app documents. Attempting to fetch from Hugging Face...");
           try {
-            const repo = HF_TO_GGUF[selectedModelFormat as keyof typeof HF_TO_GGUF];
-            if (repo) {
-              const resp = await axios.get(`https://huggingface.co/api/models/${repo}`);
-              const siblings = resp.data?.siblings || [];
-              const mmprojRemote = siblings.find((f: any) =>
-                typeof f.rfilename === "string" &&
-                f.rfilename.toLowerCase().includes("mmproj") &&
-                f.rfilename.endsWith(".gguf")
-              );
-              if (mmprojRemote) {
-                const mmprojName = mmprojRemote.rfilename.split("/").pop();
-                const mmprojDest = `${RNFS.DocumentDirectoryPath}/${mmprojName}`;
-                const exists = await RNFS.exists(mmprojDest);
-                if (!exists) {
-                  const url = `https://huggingface.co/${repo}/resolve/main/${mmprojRemote.rfilename}`;
-                  console.log("Downloading mmproj from:", url);
-                  await RNFS.downloadFile({ fromUrl: url, toFile: mmprojDest }).promise;
-                }
-                console.log("Initializing multimodal with downloaded mmproj:", mmprojDest);
-                const initOk = await llamaContext.initMultimodal({ path: mmprojDest, use_gpu: true });
-                console.log("initMultimodal success:", initOk);
-                const enabled = await llamaContext.isMultimodalEnabled();
-                console.log("isMultimodalEnabled:", enabled);
-                const support = await llamaContext.getMultimodalSupport();
-                console.log("getMultimodalSupport:", support);
-              } else {
-                console.log("No mmproj .gguf found in repo either. Ensure your model provides a projector.");
+            const resp = await axios.get(
+              `https://huggingface.co/api/models/${repo}`,
+              { headers: buildHfHeaders() }
+            );
+            const siblings = resp.data?.siblings || [];
+            const mmprojRemote = siblings.find((f: any) =>
+              typeof f.rfilename === "string" &&
+              f.rfilename.toLowerCase().includes("mmproj") &&
+              f.rfilename.endsWith(".gguf")
+            );
+            if (!mmprojRemote) {
+              console.log("No mmproj available for this repo; skipping multimodal init.");
+            } else {
+              const mmprojName = mmprojRemote.rfilename.split("/").pop();
+              const mmprojDest = `${RNFS.DocumentDirectoryPath}/${mmprojName}`;
+              const exists = await RNFS.exists(mmprojDest);
+              if (!exists) {
+                const url = `https://huggingface.co/${repo}/resolve/main/${mmprojRemote.rfilename}`;
+                console.log("Downloading mmproj from:", url);
+                await RNFS.downloadFile({ fromUrl: url, toFile: mmprojDest, headers: buildHfHeaders() }).promise;
               }
+              console.log("Initializing multimodal with mmproj:", mmprojDest);
+              const initOk = await llamaContext.initMultimodal({ path: mmprojDest, use_gpu: true });
+              console.log("initMultimodal success:", initOk);
+              const support = await llamaContext.getMultimodalSupport();
+              console.log("getMultimodalSupport:", support);
+              const enabled = await llamaContext.isMultimodalEnabled();
+              console.log("isMultimodalEnabled:", enabled);
             }
           } catch (netErr) {
             console.warn("Failed to fetch/init mmproj from repo:", netErr);
@@ -755,7 +792,12 @@ function App(): React.JSX.Element {
 //      const mediaPath = attachedImageUrl
 //        ? await toMediaPath(attachedImageUrl)
       let mediaPath = attachedImageUrl
-        ? await ensureBmpForMedia(attachedImageUrl, { maxSize: 1024 })
+        ? await ensureBmpForMedia(
+            attachedImageUrl,
+            selectedModelFormat === "Gemma 3 4B"
+              ? { squareSize: 896 }
+              : { maxSize: 1024 }
+          )
         : null;
       if (attachedImageUrl) {
         console.log("image input uri:", attachedImageUrl);

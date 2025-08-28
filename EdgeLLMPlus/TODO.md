@@ -43,4 +43,8 @@ https://github.com/mybigday/llama.rn/blob/e88c5c82a91b424a4e2b461f4d8f8eaa5df891
   - If WebP → try alt URL (jpeg/png); else prompt/fallback once
   - If unknown → optional single conversion to BMP; else error
   - Validate with getFormattedChat; proceed to completion
-  
+
+
+--------------------------------------------------------------------------------------------------------
+
+Vision https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/discussions/4

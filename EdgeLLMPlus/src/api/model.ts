@@ -3,7 +3,8 @@ import RNFS from "react-native-fs";
 export const downloadModel = async (
   modelName: string,
   modelUrl: string,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void,
+  headers?: Record<string, string>
 ): Promise<string> => {
   const destPath = `${RNFS.DocumentDirectoryPath}/${modelName}`;
   try {
@@ -20,6 +21,7 @@ export const downloadModel = async (
     const downloadResult = await RNFS.downloadFile({
       fromUrl: modelUrl,
       toFile: destPath,
+      headers,
       progressDivider: 5,
       begin: (res) => {
         console.log("Response begin ===\n\n");
